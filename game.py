@@ -11,9 +11,11 @@ class Game:
         self.current_player = 1
         self.status = "in_progress"
 
-    def make_move(self, column):
+    def make_move(self, player, column):
         if self.status != "in_progress":
             raise ValueError("Game is already over")
+        if player != self.current_player:
+            raise ValueError("Not your turn")
         if not (0 <= column < COLS):
             raise ValueError("Column out of range")
 

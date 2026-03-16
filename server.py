@@ -70,13 +70,19 @@ def make_move(game_id):
     data = request.get_json(force=True, silent=True)
     if not data or "column" not in data:
         return jsonify({"error": "column is required"}), 400
+    if "player" not in data:
+        return jsonify({"error": "player is required"}), 400
 
     column = data["column"]
     if not isinstance(column, int) or isinstance(column, bool):
         return jsonify({"error": "column must be an integer"}), 400
 
+    player = data["player"]
+    if player not in (1, 2):
+        return jsonify({"error": "player must be 1 or 2"}), 400
+
     try:
-        games[game_id].make_move(column)
+        games[game_id].make_move(player, column)
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
 

@@ -76,7 +76,7 @@ def test_get_game_response_fields(client, game_id):
 
 
 def test_get_game_reflects_current_state(client, game_id):
-    client.post(f"/games/{game_id}/moves", json={"column": 0})
+    client.post(f"/games/{game_id}/moves", json={"column": 0, "player": 1})
     data = client.get(f"/games/{game_id}").get_json()
     assert data["board"][5][0] == 1
     assert data["current_player"] == 2
@@ -126,7 +126,7 @@ def test_turn_timeout(client, game_id):
     original = server.LONG_POLL_TIMEOUT
     server.LONG_POLL_TIMEOUT = 0.025
     try:
-        client.post(f"/games/{game_id}/moves", json={"column": 0})
+        client.post(f"/games/{game_id}/moves", json={"column": 0, "player": 1})
         response = client.get(f"/games/{game_id}/turn?player=1")
         assert response.status_code == 408
         assert "error" in response.get_json()
@@ -135,12 +135,12 @@ def test_turn_timeout(client, game_id):
 
 
 def test_turn_blocks_until_opponent_moves(client, game_id):
-    client.post(f"/games/{game_id}/moves", json={"column": 0})
+    client.post(f"/games/{game_id}/moves", json={"column": 0, "player": 1})
 
     client2 = app.test_client()
 
     def player2_moves():
-        client2.post(f"/games/{game_id}/moves", json={"column": 1})
+        client2.post(f"/games/{game_id}/moves", json={"column": 1, "player": 2})
 
     t = threading.Timer(0.025, player2_moves)
     t.start()
@@ -154,12 +154,12 @@ def test_turn_blocks_until_opponent_moves(client, game_id):
 # --- POST /games/<game_id>/moves ---
 
 def test_make_move_returns_200(client, game_id):
-    response = client.post(f"/games/{game_id}/moves", json={"column": 0})
+    response = client.post(f"/games/{game_id}/moves", json={"column": 0, "player": 1})
     assert response.status_code == 200
 
 
 def test_make_move_response_fields(client, game_id):
-    data = client.post(f"/games/{game_id}/moves", json={"column": 0}).get_json()
+    data = client.post(f"/games/{game_id}/moves", json={"column": 0, "player": 1}).get_json()
     assert "game_id" in data
     assert "board" in data
     assert "current_player" in data
@@ -167,12 +167,12 @@ def test_make_move_response_fields(client, game_id):
 
 
 def test_make_move_updates_board(client, game_id):
-    data = client.post(f"/games/{game_id}/moves", json={"column": 0}).get_json()
+    data = client.post(f"/games/{game_id}/moves", json={"column": 0, "player": 1}).get_json()
     assert data["board"][5][0] == 1
 
 
 def test_make_move_switches_player(client, game_id):
-    data = client.post(f"/games/{game_id}/moves", json={"column": 0}).get_json()
+    data = client.post(f"/games/{game_id}/moves", json={"column": 0, "player": 1}).get_json()
     assert data["current_player"] == 2
 
 
@@ -189,40 +189,59 @@ def test_make_move_missing_body(client, game_id):
 
 
 def test_make_move_missing_column_key(client, game_id):
-    response = client.post(f"/games/{game_id}/moves", json={"row": 0})
+    response = client.post(f"/games/{game_id}/moves", json={"player": 1})
+    assert response.status_code == 400
+    assert "error" in response.get_json()
+
+
+def test_make_move_missing_player_key(client, game_id):
+    response = client.post(f"/games/{game_id}/moves", json={"column": 0})
     assert response.status_code == 400
     assert "error" in response.get_json()
 
 
 def test_make_move_non_integer_column(client, game_id):
-    response = client.post(f"/games/{game_id}/moves", json={"column": "a"})
+    response = client.post(f"/games/{game_id}/moves", json={"column": "a", "player": 1})
     assert response.status_code == 400
     assert "error" in response.get_json()
 
 
 def test_make_move_bool_column_rejected(client, game_id):
-    response = client.post(f"/games/{game_id}/moves", json={"column": True})
+    response = client.post(f"/games/{game_id}/moves", json={"column": True, "player": 1})
+    assert response.status_code == 400
+    assert "error" in response.get_json()
+
+
+def test_make_move_invalid_player(client, game_id):
+    response = client.post(f"/games/{game_id}/moves", json={"column": 0, "player": 3})
+    assert response.status_code == 400
+    assert "error" in response.get_json()
+
+
+def test_make_move_wrong_turn(client, game_id):
+    response = client.post(f"/games/{game_id}/moves", json={"column": 0, "player": 2})
     assert response.status_code == 400
     assert "error" in response.get_json()
 
 
 def test_make_move_column_out_of_range(client, game_id):
-    response = client.post(f"/games/{game_id}/moves", json={"column": 99})
+    response = client.post(f"/games/{game_id}/moves", json={"column": 99, "player": 1})
     assert response.status_code == 400
     assert "error" in response.get_json()
 
 
 def test_make_move_game_over(client, game_id):
     games[game_id].status = "player_1_wins"
-    response = client.post(f"/games/{game_id}/moves", json={"column": 0})
+    response = client.post(f"/games/{game_id}/moves", json={"column": 0, "player": 1})
     assert response.status_code == 400
     assert "error" in response.get_json()
 
 
 def test_make_move_win_updates_status(client, game_id):
     # Player 1 wins horizontally: cols 0,1,2,3 with player 2 at cols 4,5,6
-    moves = [0, 4, 1, 5, 2, 6, 3]
-    for col in moves[:-1]:
-        client.post(f"/games/{game_id}/moves", json={"column": col})
-    data = client.post(f"/games/{game_id}/moves", json={"column": moves[-1]}).get_json()
+    moves = [(0, 1), (4, 2), (1, 1), (5, 2), (2, 1), (6, 2), (3, 1)]
+    for col, player in moves[:-1]:
+        client.post(f"/games/{game_id}/moves", json={"column": col, "player": player})
+    col, player = moves[-1]
+    data = client.post(f"/games/{game_id}/moves", json={"column": col, "player": player}).get_json()
     assert data["status"] == "player_1_wins"
