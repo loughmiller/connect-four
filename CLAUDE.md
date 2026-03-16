@@ -39,6 +39,8 @@ No build system, test runner, or dependency file exists yet — these should be 
 
 Commit every change to git. Each logical change should be its own commit with a descriptive message.
 
+A pre-commit hook runs `pytest --cov --cov-fail-under=100` before every commit. All tests must pass with 100% coverage or the commit will be rejected.
+
 ## Unit Testing
 
 Framework: `pytest`
