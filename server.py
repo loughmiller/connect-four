@@ -26,6 +26,13 @@ def _game_response(game):
     })
 
 
+@app.route("/games/<game_id>", methods=["GET"])
+def get_game(game_id):
+    if game_id not in games:
+        return jsonify({"error": "Game not found"}), 404
+    return _game_response(games[game_id]), 200
+
+
 @app.route("/games/<game_id>/moves", methods=["POST"])
 def make_move(game_id):
     if game_id not in games:
