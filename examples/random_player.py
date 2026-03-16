@@ -1,18 +1,18 @@
 """
-Example client: two random players compete via the Connect Four API.
+Example client: a single random player.
 
-Each player runs in its own thread, uses GET /turn to wait for its turn,
-then picks a random valid column and POSTs a move.
+Waits for its turn via GET /turn, then picks a random valid column and
+POSTs a move. Expects another client to be playing the other side.
 
 Usage:
-    python3 examples/random_player.py [base_url]
+    python3 examples/random_player.py <game_id> <player> [base_url]
 
-    base_url defaults to http://localhost:5000
+    player:   1 or 2
+    base_url: defaults to http://localhost:5000
 """
 
 import random
 import sys
-import threading
 
 import requests
 
@@ -31,8 +31,16 @@ def print_board(board):
     print()
 
 
-def player_loop(base_url, game_id, player, done_event):
-    while not done_event.is_set():
+def main():
+    if len(sys.argv) < 3:
+        print("Usage: random_player.py <game_id> <player> [base_url]")
+        sys.exit(1)
+
+    game_id = sys.argv[1]
+    player = int(sys.argv[2])
+    base_url = sys.argv[3] if len(sys.argv) > 3 else "http://localhost:5000"
+
+    while True:
         # Wait for our turn
         response = requests.get(f"{base_url}/games/{game_id}/turn?player={player}")
         state = response.json()
@@ -40,8 +48,7 @@ def player_loop(base_url, game_id, player, done_event):
         if state["status"] != "in_progress":
             print(f"Game over: {state['status']}")
             print_board(state["board"])
-            done_event.set()
-            return
+            break
 
         # Pick and play a random valid column
         column = random.choice(valid_columns(state["board"]))
@@ -50,33 +57,12 @@ def player_loop(base_url, game_id, player, done_event):
             json={"column": column},
         )
         state = response.json()
-        print(f"Player {player} ({'X' if player == 1 else 'O'}) plays column {column}")
+        print(f"Player {player} plays column {column}")
         print_board(state["board"])
 
         if state["status"] != "in_progress":
             print(f"Game over: {state['status']}")
-            done_event.set()
-            return
-
-
-def main():
-    base_url = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:5000"
-
-    response = requests.post(f"{base_url}/games")
-    game = response.json()
-    game_id = game["game_id"]
-    print(f"Game started: {game_id}\n")
-    print_board(game["board"])
-
-    done_event = threading.Event()
-
-    t1 = threading.Thread(target=player_loop, args=(base_url, game_id, 1, done_event))
-    t2 = threading.Thread(target=player_loop, args=(base_url, game_id, 2, done_event))
-
-    t1.start()
-    t2.start()
-    t1.join()
-    t2.join()
+            break
 
 
 if __name__ == "__main__":
