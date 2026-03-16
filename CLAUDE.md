@@ -84,8 +84,13 @@ At the start of every session, schedule a recurring cron job (every 3 minutes) t
    b. Check PR comments: `gh api repos/loughmiller/connect-four/pulls/{number}/comments`
    c. Check issue comments: `gh api repos/loughmiller/connect-four/issues/{number}/comments`
 
-4. If a PR has been APPROVED and all checks pass, merge it:
-   `gh api repos/loughmiller/connect-four/pulls/{number}/merge -X PUT -f merge_method=squash`
+4. If a PR has been APPROVED and all checks pass, merge it and clean up the local branch:
+   ```
+   gh api repos/loughmiller/connect-four/pulls/{number}/merge -X PUT -f merge_method=squash
+   git checkout main && git pull
+   git branch -d {branch_name}
+   ```
+   (GitHub is configured to auto-delete the remote branch on merge.)
 
 5. For each unaddressed review comment:
    - If you agree with the requested change, implement it, run tests, commit, and push.
