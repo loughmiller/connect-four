@@ -59,6 +59,33 @@ def test_create_multiple_games_unique_ids(client):
     assert len(games) == 2
 
 
+# --- GET /games/<game_id> ---
+
+def test_get_game_returns_200(client, game_id):
+    assert client.get(f"/games/{game_id}").status_code == 200
+
+
+def test_get_game_response_fields(client, game_id):
+    data = client.get(f"/games/{game_id}").get_json()
+    assert "game_id" in data
+    assert "board" in data
+    assert "current_player" in data
+    assert "status" in data
+
+
+def test_get_game_reflects_current_state(client, game_id):
+    client.post(f"/games/{game_id}/moves", json={"column": 0})
+    data = client.get(f"/games/{game_id}").get_json()
+    assert data["board"][5][0] == 1
+    assert data["current_player"] == 2
+
+
+def test_get_game_unknown_game(client):
+    response = client.get("/games/nonexistent")
+    assert response.status_code == 404
+    assert "error" in response.get_json()
+
+
 # --- POST /games/<game_id>/moves ---
 
 def test_make_move_returns_200(client, game_id):
