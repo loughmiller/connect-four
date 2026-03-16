@@ -19,7 +19,7 @@ import json
 with open('$SECRETS_FILE') as f:
     secrets = json.load(f)
 for key, value in secrets.items():
-    print(f'export {key}={value}')
+    print(f'export {key}="{value}"')
 "
     echo "# END secrets.json"
 } >> ~/.zshenv
