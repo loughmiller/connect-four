@@ -1,4 +1,6 @@
+import threading
 import pytest
+import server
 from server import app, games
 
 
@@ -84,6 +86,69 @@ def test_get_game_unknown_game(client):
     response = client.get("/games/nonexistent")
     assert response.status_code == 404
     assert "error" in response.get_json()
+
+
+# --- GET /games/<game_id>/turn ---
+
+def test_turn_unknown_game(client):
+    response = client.get("/games/nonexistent/turn?player=1")
+    assert response.status_code == 404
+    assert "error" in response.get_json()
+
+
+def test_turn_missing_player(client, game_id):
+    response = client.get(f"/games/{game_id}/turn")
+    assert response.status_code == 400
+    assert "error" in response.get_json()
+
+
+def test_turn_invalid_player(client, game_id):
+    response = client.get(f"/games/{game_id}/turn?player=3")
+    assert response.status_code == 400
+    assert "error" in response.get_json()
+
+
+def test_turn_returns_immediately_when_already_your_turn(client, game_id):
+    response = client.get(f"/games/{game_id}/turn?player=1")
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data["current_player"] == 1
+
+
+def test_turn_returns_immediately_when_game_over(client, game_id):
+    games[game_id].status = "player_1_wins"
+    response = client.get(f"/games/{game_id}/turn?player=2")
+    assert response.status_code == 200
+    assert response.get_json()["status"] == "player_1_wins"
+
+
+def test_turn_timeout(client, game_id):
+    original = server.LONG_POLL_TIMEOUT
+    server.LONG_POLL_TIMEOUT = 0.025
+    try:
+        client.post(f"/games/{game_id}/moves", json={"column": 0})
+        response = client.get(f"/games/{game_id}/turn?player=1")
+        assert response.status_code == 408
+        assert "error" in response.get_json()
+    finally:
+        server.LONG_POLL_TIMEOUT = original
+
+
+def test_turn_blocks_until_opponent_moves(client, game_id):
+    client.post(f"/games/{game_id}/moves", json={"column": 0})
+
+    client2 = app.test_client()
+
+    def player2_moves():
+        client2.post(f"/games/{game_id}/moves", json={"column": 1})
+
+    t = threading.Timer(0.025, player2_moves)
+    t.start()
+    response = client.get(f"/games/{game_id}/turn?player=1")
+    t.join()
+
+    assert response.status_code == 200
+    assert response.get_json()["current_player"] == 1
 
 
 # --- POST /games/<game_id>/moves ---
