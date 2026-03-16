@@ -1,5 +1,6 @@
 {
+  "model": "opus",
   "permissions": {
-    "defaultMode": "bypassPermissions"
+    "defaultMode": "bypassPermissions",
   }
 }
