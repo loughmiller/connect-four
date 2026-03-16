@@ -43,6 +43,22 @@ A pre-commit hook runs `pytest --cov --cov-fail-under=100` before every commit. 
 
 Never push directly to `main`. All changes must be submitted via a pull request: create a feature branch, push it, and open a PR.
 
+## Unit Testing
+
+Framework: `pytest`
+
+```bash
+pytest                                  # run all tests
+pytest tests/test_board.py              # run a single file
+pytest tests/test_board.py::test_name   # run a single test
+pytest -v                               # verbose output
+```
+
+- Test files live in `tests/`, named `test_*.py`
+- Test functions named `test_*`
+- Install pytest: `pip install pytest pytest-cov`
+- 100% coverage is required: `pytest --cov --cov-fail-under=100`
+
 ## PR Watching
 
 At the start of every session, schedule a recurring cron job (every 3 minutes) to watch for PR activity on this repo. Use the `/loop` skill with this prompt:
@@ -62,23 +78,9 @@ At the start of every session, schedule a recurring cron job (every 3 minutes) t
 4. If a PR has been APPROVED and all checks pass, merge it:
    `gh api repos/loughmiller/connect-four/pulls/{number}/merge -X PUT -f merge_method=squash`
 
-5. If there are unaddressed review comments requesting changes, check out the branch, implement the changes, run tests (`pytest --cov --cov-fail-under=100`), commit, and push.
+5. For each unaddressed review comment:
+   - If you agree with the requested change, implement it, run tests, commit, and push.
+   - If you disagree, reply to the comment via `gh api repos/loughmiller/connect-four/pulls/{number}/comments/{comment_id}/replies -X POST -f body="..."` explaining your reasoning and ask for clarification before making changes.
 
 Always run `git checkout main && git pull` before checking out any feature branch. Always run tests before pushing. Never push directly to main.
 ```
-
-## Unit Testing
-
-Framework: `pytest`
-
-```bash
-pytest                                  # run all tests
-pytest tests/test_board.py              # run a single file
-pytest tests/test_board.py::test_name   # run a single test
-pytest -v                               # verbose output
-```
-
-- Test files live in `tests/`, named `test_*.py`
-- Test functions named `test_*`
-- Install pytest: `pip install pytest pytest-cov`
-- 100% coverage is required: `pytest --cov --cov-fail-under=100`
