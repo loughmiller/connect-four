@@ -48,4 +48,5 @@ pytest -v                               # verbose output
 
 - Test files live in `tests/`, named `test_*.py`
 - Test functions named `test_*`
-- Install pytest: `pip install pytest`
+- Install pytest: `pip install pytest pytest-cov`
+- 100% coverage is required: `pytest --cov --cov-fail-under=100`
