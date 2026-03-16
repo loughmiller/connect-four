@@ -58,3 +58,29 @@ pytest -v                               # verbose output
 - Test functions named `test_*`
 - Install pytest: `pip install pytest pytest-cov`
 - 100% coverage is required: `pytest --cov --cov-fail-under=100`
+
+## PR Watching
+
+At the start of every session, schedule a recurring cron job (every 3 minutes) to watch for PR activity on this repo. Use the `/loop` skill with this prompt:
+
+```
+3m Check GitHub PRs for the loughmiller/connect-four repo and take action:
+
+1. Load secrets and authenticate: `bash /workspace/.devcontainer/load-secrets.sh && source ~/.zshenv`
+
+2. Get all open PRs: `gh api repos/loughmiller/connect-four/pulls`
+
+3. For each open PR:
+   a. Check review state: `gh api repos/loughmiller/connect-four/pulls/{number}/reviews`
+   b. Check PR comments: `gh api repos/loughmiller/connect-four/pulls/{number}/comments`
+   c. Check issue comments: `gh api repos/loughmiller/connect-four/issues/{number}/comments`
+
+4. If a PR has been APPROVED and all checks pass, merge it:
+   `gh api repos/loughmiller/connect-four/pulls/{number}/merge -X PUT -f merge_method=squash`
+
+5. For each unaddressed review comment:
+   - If you agree with the requested change, implement it, run tests, commit, and push.
+   - If you disagree, reply to the comment via `gh api repos/loughmiller/connect-four/pulls/{number}/comments/{comment_id}/replies -X POST -f body="..."` explaining your reasoning and ask for clarification before making changes.
+
+Always run `git checkout main && git pull` before checking out any feature branch. Always run tests before pushing. Never push directly to main.
+```
