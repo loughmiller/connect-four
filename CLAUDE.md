@@ -97,4 +97,6 @@ At the start of every session, schedule a recurring cron job (every 3 minutes) t
    - If you disagree, reply to the comment via `gh api repos/loughmiller/connect-four/pulls/{number}/comments/{comment_id}/replies -X POST -f body="..."` explaining your reasoning and ask for clarification before making changes.
 
 Always run `git checkout main && git pull` before checking out any feature branch. Always run tests before pushing. Never push directly to main.
+
+If there are no open PRs and nothing to act on, output nothing.
 ```
