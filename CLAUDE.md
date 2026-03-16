@@ -43,6 +43,15 @@ A pre-commit hook runs `pytest --cov --cov-fail-under=100` before every commit. 
 
 Never push directly to `main`. All changes must be submitted via a pull request: create a feature branch, push it, and open a PR.
 
+## Memory
+
+Claude's memory is split by scope:
+
+- **Repo memory** (`.claude/memory/`) — project-level feedback, workflow rules, and context that applies to all developers. Committed to the repo and shared.
+- **Personal memory** (`~/.claude/projects/-workspace/memory/`) — individual preferences, communication style, personal context. Local only, not committed.
+
+When saving new memories, use repo memory for anything project- or workflow-related, and personal memory for anything specific to an individual developer.
+
 ## Unit Testing
 
 Framework: `pytest`
