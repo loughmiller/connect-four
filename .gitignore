@@ -6,3 +6,5 @@ dist/
 .env
 .coverage
 .pytest_cache/
+
+secrets.json
