@@ -43,6 +43,30 @@ A pre-commit hook runs `pytest --cov --cov-fail-under=100` before every commit. 
 
 Never push directly to `main`. All changes must be submitted via a pull request: create a feature branch, push it, and open a PR.
 
+## PR Watching
+
+At the start of every session, schedule a recurring cron job (every 3 minutes) to watch for PR activity on this repo. Use the `/loop` skill with this prompt:
+
+```
+3m Check GitHub PRs for the loughmiller/connect-four repo and take action:
+
+1. Load secrets and authenticate: `bash /workspace/.devcontainer/load-secrets.sh && source ~/.zshenv`
+
+2. Get all open PRs: `gh api repos/loughmiller/connect-four/pulls`
+
+3. For each open PR:
+   a. Check review state: `gh api repos/loughmiller/connect-four/pulls/{number}/reviews`
+   b. Check PR comments: `gh api repos/loughmiller/connect-four/pulls/{number}/comments`
+   c. Check issue comments: `gh api repos/loughmiller/connect-four/issues/{number}/comments`
+
+4. If a PR has been APPROVED and all checks pass, merge it:
+   `gh api repos/loughmiller/connect-four/pulls/{number}/merge -X PUT -f merge_method=squash`
+
+5. If there are unaddressed review comments requesting changes, check out the branch, implement the changes, run tests (`pytest --cov --cov-fail-under=100`), commit, and push.
+
+Always run `git checkout main && git pull` before checking out any feature branch. Always run tests before pushing. Never push directly to main.
+```
+
 ## Unit Testing
 
 Framework: `pytest`
