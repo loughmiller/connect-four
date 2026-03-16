@@ -54,7 +54,7 @@ def main():
         column = random.choice(valid_columns(state["board"]))
         response = requests.post(
             f"{base_url}/games/{game_id}/moves",
-            json={"column": column},
+            json={"column": column, "player": player},
         )
         state = response.json()
         print(f"Player {player} plays column {column}")
