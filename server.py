@@ -1,5 +1,3 @@
-import time
-
 from flask import Flask, jsonify, request
 from game import Game
 
@@ -7,7 +5,6 @@ app = Flask(__name__)
 games = {}
 
 LONG_POLL_TIMEOUT = 30
-LONG_POLL_INTERVAL = 0.05
 
 
 @app.route("/games", methods=["POST"])
@@ -52,14 +49,16 @@ def wait_for_turn(game_id):
         return jsonify({"error": "player must be 1 or 2"}), 400
 
     game = games[game_id]
-    deadline = time.time() + LONG_POLL_TIMEOUT
 
-    while time.time() < deadline:
-        if game.current_player == player or game.status != "in_progress":
-            return _game_response(game), 200
-        time.sleep(LONG_POLL_INTERVAL)
+    with game._condition:
+        notified = game._condition.wait_for(
+            lambda: game.current_player == player or game.status != "in_progress",
+            timeout=LONG_POLL_TIMEOUT,
+        )
 
-    return jsonify({"error": "timeout"}), 408
+    if not notified:
+        return jsonify({"error": "timeout"}), 408
+    return _game_response(game), 200
 
 
 @app.route("/games/<game_id>/moves", methods=["POST"])
