@@ -35,6 +35,10 @@ pip install -r requirements.txt  # once it exists
 
 No build system, test runner, or dependency file exists yet — these should be added as the project develops.
 
+## Git
+
+Commit every change to git. Each logical change should be its own commit with a descriptive message.
+
 ## Unit Testing
 
 Framework: `pytest`
