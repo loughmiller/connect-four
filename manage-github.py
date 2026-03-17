@@ -17,6 +17,53 @@ import sys
 REPO = "loughmiller/connect-four"
 SECRETS_FILE = "/workspace/secrets.json"
 
+# ---------------------------------------------------------------------------
+# Prompt templates (passed to Claude Code via run_claude)
+# ---------------------------------------------------------------------------
+
+PR_PROMPT_TEMPLATE = """\
+You are working on PR #{pr_number} on the {pr_branch} branch of {repo}.
+
+Here are the reviews (with state and body) on this PR:
+{reviews}
+
+Here are the inline review comments on this PR:
+{review_comments}
+
+Here are the issue/conversation comments on this PR:
+{issue_comments}
+
+For each piece of unaddressed feedback:
+- If the feedback requests a change and you agree, implement it, run tests (pytest --cov --cov-fail-under=100), commit, and push to the {pr_branch} branch.
+- If the feedback requests a change and you disagree, reply to the comment via the gh API explaining your reasoning and ask for clarification before making changes.
+- If the feedback is a question (not a change request), reply to the comment via the gh API with a helpful answer.
+
+After addressing all feedback, run tests one final time to make sure everything passes.
+Never push directly to main. Only push to the {pr_branch} branch."""
+
+ISSUE_PROMPT_TEMPLATE = """\
+You are working on GitHub issue #{issue_number} for the {repo} repository.
+
+Issue title: {issue_title}
+
+Issue body:
+{issue_body}
+
+Issue comments:
+{issue_comments}
+
+Instructions:
+1. Read the codebase to understand the current state of the project.
+2. Implement the changes requested in the issue.
+3. Write tests for your changes. All tests must pass with 100% coverage: pytest --cov --cov-fail-under=100
+4. Commit your changes with descriptive commit messages.
+5. Push to the {branch_name} branch.
+6. Create a pull request using: gh pr create --title "<title>" --body "<body>"
+   - Reference the issue in the PR body with "Closes #{issue_number}"
+7. Never push directly to main."""
+
+# ---------------------------------------------------------------------------
+
 
 def run(cmd, *, check=True, capture=True, **kwargs):
     """Run a shell command and return stdout."""
@@ -124,24 +171,14 @@ def handle_prs():
         run(f"git checkout {pr_branch}")
         run(f"git pull origin {pr_branch}")
 
-        prompt = f"""You are working on PR #{pr_number} on the {pr_branch} branch of {REPO}.
-
-Here are the reviews (with state and body) on this PR:
-{json.dumps(reviews)}
-
-Here are the inline review comments on this PR:
-{json.dumps(review_comments)}
-
-Here are the issue/conversation comments on this PR:
-{json.dumps(issue_comments)}
-
-For each piece of unaddressed feedback:
-- If the feedback requests a change and you agree, implement it, run tests (pytest --cov --cov-fail-under=100), commit, and push to the {pr_branch} branch.
-- If the feedback requests a change and you disagree, reply to the comment via the gh API explaining your reasoning and ask for clarification before making changes.
-- If the feedback is a question (not a change request), reply to the comment via the gh API with a helpful answer.
-
-After addressing all feedback, run tests one final time to make sure everything passes.
-Never push directly to main. Only push to the {pr_branch} branch."""
+        prompt = PR_PROMPT_TEMPLATE.format(
+            pr_number=pr_number,
+            pr_branch=pr_branch,
+            repo=REPO,
+            reviews=json.dumps(reviews),
+            review_comments=json.dumps(review_comments),
+            issue_comments=json.dumps(issue_comments),
+        )
 
         run_claude(prompt)
 
@@ -185,25 +222,14 @@ def handle_issues():
         run("git checkout main && git pull")
         run(f"git checkout -b {branch_name}")
 
-        prompt = f"""You are working on GitHub issue #{issue_number} for the {REPO} repository.
-
-Issue title: {issue_title}
-
-Issue body:
-{issue_body}
-
-Issue comments:
-{json.dumps(issue_comments)}
-
-Instructions:
-1. Read the codebase to understand the current state of the project.
-2. Implement the changes requested in the issue.
-3. Write tests for your changes. All tests must pass with 100% coverage: pytest --cov --cov-fail-under=100
-4. Commit your changes with descriptive commit messages.
-5. Push to the {branch_name} branch.
-6. Create a pull request using: gh pr create --title "<title>" --body "<body>"
-   - Reference the issue in the PR body with "Closes #{issue_number}"
-7. Never push directly to main."""
+        prompt = ISSUE_PROMPT_TEMPLATE.format(
+            issue_number=issue_number,
+            repo=REPO,
+            issue_title=issue_title,
+            issue_body=issue_body,
+            issue_comments=json.dumps(issue_comments),
+            branch_name=branch_name,
+        )
 
         run_claude(prompt)
 
