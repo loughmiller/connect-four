@@ -2,8 +2,6 @@
 # Clone repo to a separate directory and run manage_github.py in a loop.
 # Runs in the background so it doesn't block devcontainer startup.
 
-set -euo pipefail
-
 # Load secrets (GH_TOKEN, etc.) from .env into this shell
 ENV_FILE="/workspace/.env"
 if [ -f "$ENV_FILE" ]; then
@@ -21,8 +19,20 @@ LOG="/tmp/manage-github.log"
 git config --global user.name "manage-github-bot"
 git config --global user.email "bot@connect-four.local"
 
+# Retry clone up to 5 times (network may not be ready after firewall init)
 if [ ! -d "$WORK_DIR/.git" ]; then
-    git clone "$REPO_URL" "$WORK_DIR"
+    for i in 1 2 3 4 5; do
+        if git clone "$REPO_URL" "$WORK_DIR"; then
+            break
+        fi
+        echo "Clone attempt $i failed, retrying in 5s..." >&2
+        rm -rf "$WORK_DIR"
+        sleep 5
+    done
+    if [ ! -d "$WORK_DIR/.git" ]; then
+        echo "Failed to clone after 5 attempts, giving up." >&2
+        exit 1
+    fi
 fi
 
 echo "manage-github started (logging to $LOG)"
