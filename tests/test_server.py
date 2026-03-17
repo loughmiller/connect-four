@@ -247,6 +247,91 @@ def test_turn_polling_during_game_completion(client, game_id):
     assert result["response"].get_json()["status"] == "player_1_wins"
 
 
+def test_turn_both_players_polling_simultaneously(client, game_id):
+    """Both player 1 and player 2 poll at the same time; move wakes both."""
+    client.post(f"/games/{game_id}/moves", json={"column": 0, "player": 1})
+
+    results = {}
+
+    def poll_turn(player, label):
+        c = app.test_client()
+        results[label] = c.get(f"/games/{game_id}/turn?player={player}")
+
+    # Player 1 waits for their turn, player 2 waits for theirs
+    t1 = threading.Thread(target=poll_turn, args=(1, "p1"))
+    t2 = threading.Thread(target=poll_turn, args=(2, "p2"))
+    t1.start()
+    t2.start()
+
+    time.sleep(0.025)
+    # Player 2's turn — they move, which should wake player 1's poll
+    # Player 2 should have returned immediately (already their turn)
+    t2.join()
+    assert results["p2"].status_code == 200
+    assert results["p2"].get_json()["current_player"] == 2
+
+    mover = app.test_client()
+    mover.post(f"/games/{game_id}/moves", json={"column": 1, "player": 2})
+
+    t1.join()
+    assert results["p1"].status_code == 200
+    assert results["p1"].get_json()["current_player"] == 1
+
+
+def test_turn_concurrent_poll_during_draw(client, game_id):
+    """A player polling when the game ends in a draw receives draw status."""
+    # Play 41 moves to leave one cell remaining
+    moves = [0, 2, 1, 3, 4, 6, 5] * 6
+    for i, col in enumerate(moves[:41]):
+        player = 1 if i % 2 == 0 else 2
+        client.post(f"/games/{game_id}/moves", json={"column": col, "player": player})
+
+    # Player 1 polls while waiting for their turn
+    result = {}
+
+    def poll_turn():
+        c = app.test_client()
+        result["response"] = c.get(f"/games/{game_id}/turn?player=1")
+
+    t = threading.Thread(target=poll_turn)
+    t.start()
+
+    time.sleep(0.025)
+    # Player 2 makes the final move causing a draw
+    client.post(f"/games/{game_id}/moves", json={"column": moves[41], "player": 2})
+
+    t.join()
+    assert result["response"].status_code == 200
+    assert result["response"].get_json()["status"] == "draw"
+
+
+def test_turn_many_concurrent_pollers(client, game_id):
+    """Many clients polling simultaneously all wake up when a move is made."""
+    client.post(f"/games/{game_id}/moves", json={"column": 0, "player": 1})
+
+    results = {}
+    num_pollers = 5
+
+    def poll_turn(idx):
+        c = app.test_client()
+        results[idx] = c.get(f"/games/{game_id}/turn?player=1")
+
+    threads = [threading.Thread(target=poll_turn, args=(i,)) for i in range(num_pollers)]
+    for t in threads:
+        t.start()
+
+    time.sleep(0.025)
+    mover = app.test_client()
+    mover.post(f"/games/{game_id}/moves", json={"column": 1, "player": 2})
+
+    for t in threads:
+        t.join()
+
+    for i in range(num_pollers):
+        assert results[i].status_code == 200
+        assert results[i].get_json()["current_player"] == 1
+
+
 def test_turn_rapid_sequential_polls(client, game_id):
     """A client polls, times out, and immediately re-polls without issues."""
     client.post(f"/games/{game_id}/moves", json={"column": 0, "player": 1})
