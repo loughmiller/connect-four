@@ -76,7 +76,8 @@ def run(cmd, *, check=True, capture=True, **kwargs):
 
 def gh_api(endpoint, *, method="GET", fields=None, jq=None):
     """Call the GitHub API via gh CLI and return parsed JSON or string."""
-    cmd = f'gh api "repos/{REPO}/{endpoint}"'
+    url = f"repos/{REPO}/{endpoint}".rstrip("/")
+    cmd = f'gh api "{url}"'
     if method != "GET":
         cmd += f" -X {method}"
     if fields:
