@@ -19,9 +19,6 @@ RUN useradd -m -s /bin/bash claude
 COPY tools/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
-WORKDIR /work
-RUN chown claude:claude /work
-
 USER claude
 
 CMD ["/usr/local/bin/entrypoint.sh"]

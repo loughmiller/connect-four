@@ -13,9 +13,4 @@ services:
     env_file: .env
     environment:
       - MANAGE_GITHUB_INTERVAL=60
-    volumes:
-      - manage-github-work:/work
     restart: unless-stopped
-
-volumes:
-  manage-github-work:
