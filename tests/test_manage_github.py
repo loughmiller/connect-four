@@ -2,12 +2,12 @@ import json
 import subprocess
 from unittest.mock import patch, mock_open, call
 
-import manage_github
+import tools.manage_github as manage_github
 
 
 # --- run() ---
 
-@patch("manage_github.subprocess.run")
+@patch("tools.manage_github.subprocess.run")
 def test_run_returns_stripped_stdout(mock_subproc):
     """run() captures stdout and strips whitespace."""
     mock_subproc.return_value.stdout = "  hello  "
@@ -18,7 +18,7 @@ def test_run_returns_stripped_stdout(mock_subproc):
     )
 
 
-@patch("manage_github.subprocess.run")
+@patch("tools.manage_github.subprocess.run")
 def test_run_capture_false_returns_empty(mock_subproc):
     """run() with capture=False returns empty string."""
     result = manage_github.run("echo hello", capture=False)
@@ -30,7 +30,7 @@ def test_run_capture_false_returns_empty(mock_subproc):
 
 # --- gh_api() ---
 
-@patch("manage_github.run")
+@patch("tools.manage_github.run")
 def test_gh_api_get_with_jq(mock_run):
     """gh_api() with jq passes raw string through."""
     mock_run.return_value = "loughmiller/connect-four"
@@ -41,7 +41,7 @@ def test_gh_api_get_with_jq(mock_run):
     assert result == "loughmiller/connect-four"
 
 
-@patch("manage_github.run")
+@patch("tools.manage_github.run")
 def test_gh_api_get_returns_parsed_json(mock_run):
     """gh_api() without jq parses JSON response."""
     mock_run.return_value = '{"id": 1}'
@@ -52,7 +52,7 @@ def test_gh_api_get_returns_parsed_json(mock_run):
     assert result == {"id": 1}
 
 
-@patch("manage_github.run")
+@patch("tools.manage_github.run")
 def test_gh_api_with_method_and_fields(mock_run):
     """gh_api() includes -X and -f flags for method/fields."""
     mock_run.return_value = "{}"
@@ -62,7 +62,7 @@ def test_gh_api_with_method_and_fields(mock_run):
     assert "-f merge_method=squash" in cmd
 
 
-@patch("manage_github.run")
+@patch("tools.manage_github.run")
 def test_gh_api_strips_trailing_slash(mock_run):
     """gh_api() with empty endpoint doesn't leave a trailing slash."""
     mock_run.return_value = '"loughmiller/connect-four"'
@@ -74,7 +74,7 @@ def test_gh_api_strips_trailing_slash(mock_run):
 
 # --- load_secrets() ---
 
-@patch("manage_github.os.path.isfile", return_value=True)
+@patch("tools.manage_github.os.path.isfile", return_value=True)
 @patch("builtins.open", mock_open(read_data='{"GH_TOKEN": "abc123"}'))
 @patch.dict("os.environ", {}, clear=True)
 def test_load_secrets_sets_env_vars(mock_isfile):
@@ -84,7 +84,7 @@ def test_load_secrets_sets_env_vars(mock_isfile):
     assert os.environ["GH_TOKEN"] == "abc123"
 
 
-@patch("manage_github.os.path.isfile", return_value=False)
+@patch("tools.manage_github.os.path.isfile", return_value=False)
 def test_load_secrets_no_file(mock_isfile):
     """load_secrets() is a no-op when secrets file doesn't exist."""
     manage_github.load_secrets()
@@ -93,24 +93,24 @@ def test_load_secrets_no_file(mock_isfile):
 
 # --- verify_prerequisites() ---
 
-@patch("manage_github.shutil.which", return_value="/usr/bin/claude")
-@patch("manage_github.gh_api", return_value="loughmiller/connect-four")
+@patch("tools.manage_github.shutil.which", return_value="/usr/bin/claude")
+@patch("tools.manage_github.gh_api", return_value="loughmiller/connect-four")
 def test_verify_prerequisites_success(mock_gh, mock_which):
     """verify_prerequisites() passes when gh and claude are available."""
     manage_github.verify_prerequisites()
 
 
-@patch("manage_github.sys.exit")
-@patch("manage_github.gh_api", side_effect=subprocess.CalledProcessError(1, "gh"))
+@patch("tools.manage_github.sys.exit")
+@patch("tools.manage_github.gh_api", side_effect=subprocess.CalledProcessError(1, "gh"))
 def test_verify_prerequisites_gh_fails(mock_gh, mock_exit):
     """verify_prerequisites() exits when gh API call fails."""
     manage_github.verify_prerequisites()
     mock_exit.assert_called_once_with(1)
 
 
-@patch("manage_github.sys.exit")
-@patch("manage_github.shutil.which", return_value=None)
-@patch("manage_github.gh_api", return_value="loughmiller/connect-four")
+@patch("tools.manage_github.sys.exit")
+@patch("tools.manage_github.shutil.which", return_value=None)
+@patch("tools.manage_github.gh_api", return_value="loughmiller/connect-four")
 def test_verify_prerequisites_no_claude(mock_gh, mock_which, mock_exit):
     """verify_prerequisites() exits when claude CLI is missing."""
     manage_github.verify_prerequisites()
@@ -119,7 +119,7 @@ def test_verify_prerequisites_no_claude(mock_gh, mock_which, mock_exit):
 
 # --- run_claude() ---
 
-@patch("manage_github.subprocess.run")
+@patch("tools.manage_github.subprocess.run")
 def test_run_claude_calls_subprocess(mock_subproc):
     """run_claude() invokes claude CLI with --print flag."""
     manage_github.run_claude("fix the bug")
@@ -131,7 +131,7 @@ def test_run_claude_calls_subprocess(mock_subproc):
 
 # --- handle_prs() ---
 
-@patch("manage_github.gh_api")
+@patch("tools.manage_github.gh_api")
 def test_handle_prs_no_prs(mock_gh):
     """handle_prs() does nothing when no open PRs exist."""
     mock_gh.return_value = ""
@@ -139,8 +139,8 @@ def test_handle_prs_no_prs(mock_gh):
     mock_gh.assert_called_once()
 
 
-@patch("manage_github.run")
-@patch("manage_github.gh_api")
+@patch("tools.manage_github.run")
+@patch("tools.manage_github.gh_api")
 def test_handle_prs_approved_passing_merges(mock_gh, mock_run):
     """Approved PR with passing checks gets squash-merged and branch cleaned up."""
     mock_gh.side_effect = [
@@ -160,9 +160,9 @@ def test_handle_prs_approved_passing_merges(mock_gh, mock_run):
     mock_run.assert_any_call("git branch -d feat-x", check=False)
 
 
-@patch("manage_github.run_claude")
-@patch("manage_github.run")
-@patch("manage_github.gh_api")
+@patch("tools.manage_github.run_claude")
+@patch("tools.manage_github.run")
+@patch("tools.manage_github.gh_api")
 def test_handle_prs_approved_failing_checks_processes_feedback(mock_gh, mock_run, mock_claude):
     """Approved PR with failing checks still processes review feedback via Claude."""
     mock_gh.side_effect = [
@@ -177,9 +177,9 @@ def test_handle_prs_approved_failing_checks_processes_feedback(mock_gh, mock_run
     mock_claude.assert_called_once()
 
 
-@patch("manage_github.run_claude")
-@patch("manage_github.run")
-@patch("manage_github.gh_api")
+@patch("tools.manage_github.run_claude")
+@patch("tools.manage_github.run")
+@patch("tools.manage_github.gh_api")
 def test_handle_prs_no_comments_skips(mock_gh, mock_run, mock_claude):
     """PR with no actionable comments skips Claude invocation."""
     mock_gh.side_effect = [
@@ -194,9 +194,9 @@ def test_handle_prs_no_comments_skips(mock_gh, mock_run, mock_claude):
     mock_claude.assert_not_called()
 
 
-@patch("manage_github.run_claude")
-@patch("manage_github.run")
-@patch("manage_github.gh_api")
+@patch("tools.manage_github.run_claude")
+@patch("tools.manage_github.run")
+@patch("tools.manage_github.gh_api")
 def test_handle_prs_with_feedback_invokes_claude(mock_gh, mock_run, mock_claude):
     """PR with review comments invokes Claude on the feature branch."""
     mock_gh.side_effect = [
@@ -218,9 +218,9 @@ def test_handle_prs_with_feedback_invokes_claude(mock_gh, mock_run, mock_claude)
     mock_run.assert_any_call("git checkout main")
 
 
-@patch("manage_github.run_claude")
-@patch("manage_github.run")
-@patch("manage_github.gh_api")
+@patch("tools.manage_github.run_claude")
+@patch("tools.manage_github.run")
+@patch("tools.manage_github.gh_api")
 def test_handle_prs_check_status_error_treated_as_unknown(mock_gh, mock_run, mock_claude):
     """Status API error is treated as non-failure, allowing merge if approved."""
     mock_gh.side_effect = [
@@ -238,7 +238,7 @@ def test_handle_prs_check_status_error_treated_as_unknown(mock_gh, mock_run, moc
 
 # --- handle_issues() ---
 
-@patch("manage_github.gh_api")
+@patch("tools.manage_github.gh_api")
 def test_handle_issues_no_issues(mock_gh):
     """handle_issues() does nothing when no open issues exist."""
     mock_gh.side_effect = [
@@ -248,8 +248,8 @@ def test_handle_issues_no_issues(mock_gh):
     manage_github.handle_issues()
 
 
-@patch("manage_github.run")
-@patch("manage_github.gh_api")
+@patch("tools.manage_github.run")
+@patch("tools.manage_github.gh_api")
 def test_handle_issues_skip_label(mock_gh, mock_run):
     """Issues with skip labels (wontfix, etc.) are not processed."""
     mock_gh.side_effect = [
@@ -264,8 +264,8 @@ def test_handle_issues_skip_label(mock_gh, mock_run):
     assert not any("checkout -b" in str(c) for c in mock_run.call_args_list)
 
 
-@patch("manage_github.run")
-@patch("manage_github.gh_api")
+@patch("tools.manage_github.run")
+@patch("tools.manage_github.gh_api")
 def test_handle_issues_existing_branch_skips(mock_gh, mock_run):
     """Issues with an existing PR branch are skipped."""
     mock_gh.side_effect = [
@@ -278,9 +278,9 @@ def test_handle_issues_existing_branch_skips(mock_gh, mock_run):
     assert not any("checkout -b" in str(c) for c in mock_run.call_args_list)
 
 
-@patch("manage_github.run_claude")
-@patch("manage_github.run")
-@patch("manage_github.gh_api")
+@patch("tools.manage_github.run_claude")
+@patch("tools.manage_github.run")
+@patch("tools.manage_github.gh_api")
 def test_handle_issues_linked_pr_skips(mock_gh, mock_run, mock_claude):
     """Issues that already have a linked PR are skipped."""
     mock_gh.side_effect = [
@@ -295,9 +295,9 @@ def test_handle_issues_linked_pr_skips(mock_gh, mock_run, mock_claude):
     mock_claude.assert_not_called()
 
 
-@patch("manage_github.run_claude")
-@patch("manage_github.run")
-@patch("manage_github.gh_api")
+@patch("tools.manage_github.run_claude")
+@patch("tools.manage_github.run")
+@patch("tools.manage_github.gh_api")
 def test_handle_issues_normal_processing(mock_gh, mock_run, mock_claude):
     """Normal issue creates a branch and invokes Claude with issue details."""
     mock_gh.side_effect = [
@@ -315,9 +315,9 @@ def test_handle_issues_normal_processing(mock_gh, mock_run, mock_claude):
     assert "please" in prompt
 
 
-@patch("manage_github.run_claude")
-@patch("manage_github.run")
-@patch("manage_github.gh_api")
+@patch("tools.manage_github.run_claude")
+@patch("tools.manage_github.run")
+@patch("tools.manage_github.gh_api")
 def test_handle_issues_none_body_defaults_to_empty(mock_gh, mock_run, mock_claude):
     """Issue with None body defaults to empty string in prompt."""
     mock_gh.side_effect = [
@@ -334,12 +334,12 @@ def test_handle_issues_none_body_defaults_to_empty(mock_gh, mock_run, mock_claud
 
 # --- main() ---
 
-@patch("manage_github.handle_issues")
-@patch("manage_github.handle_prs")
-@patch("manage_github.run")
-@patch("manage_github.os.chdir")
-@patch("manage_github.verify_prerequisites")
-@patch("manage_github.load_secrets")
+@patch("tools.manage_github.handle_issues")
+@patch("tools.manage_github.handle_prs")
+@patch("tools.manage_github.run")
+@patch("tools.manage_github.os.chdir")
+@patch("tools.manage_github.verify_prerequisites")
+@patch("tools.manage_github.load_secrets")
 def test_main_orchestrates_correctly(mock_secrets, mock_verify, mock_chdir, mock_run, mock_prs, mock_issues):
     """main() calls setup, checkout, and both handlers in order."""
     manage_github.main()

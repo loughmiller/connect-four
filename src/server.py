@@ -2,7 +2,7 @@ import threading
 import time
 
 from flask import Flask, jsonify, request
-from game import Game
+from src.game import Game
 
 app = Flask(__name__)
 games = {}

@@ -1,6 +1,6 @@
 import pytest
 
-from game import Game, ROWS, COLS
+from src.game import Game, ROWS, COLS
 
 
 def test_new_game_board_dimensions():
