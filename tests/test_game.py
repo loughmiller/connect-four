@@ -123,6 +123,39 @@ def test_diagonal_win_backslash():
     assert game.status == "player_1_wins"
 
 
+def test_horizontal_win_player2():
+    game = Game()
+    # Player 2: cols 0,1,2,3  Player 1 wastes moves on col 4,5,6 (+ extra)
+    moves = [4, 0, 5, 1, 6, 2, 4, 3]
+    for col in moves:
+        game.make_move(game.current_player, col)
+    assert game.status == "player_2_wins"
+
+
+def test_vertical_win_player2():
+    game = Game()
+    # Player 2 stacks col 1, player 1 stacks col 0 (with one wasted move)
+    moves = [0, 1, 0, 1, 0, 1, 6, 1]
+    for col in moves:
+        game.make_move(game.current_player, col)
+    assert game.status == "player_2_wins"
+
+
+def test_diagonal_win_player2():
+    game = Game()
+    # Set up a / diagonal win for player 2 at (5,0),(4,1),(3,2),(2,3)
+    game.board[5][0] = 2
+    game.board[4][1] = 2
+    game.board[3][2] = 2
+    # fill below (2,3) so piece lands at row 2
+    game.board[5][3] = 1
+    game.board[4][3] = 1
+    game.board[3][3] = 1
+    game.current_player = 2
+    game.make_move(2, 3)
+    assert game.status == "player_2_wins"
+
+
 def test_draw():
     game = Game()
     # Fill board with all 2s except (0, 0), then player 1 plays col 0
