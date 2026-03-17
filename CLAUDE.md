@@ -74,7 +74,7 @@ PR checks run via `check-prs.sh` outside of live Claude sessions. The script:
 - Loads secrets and authenticates with `gh`
 - Fetches all open PRs on `loughmiller/connect-four`
 - Merges approved PRs with passing checks (squash merge, cleans up local branch)
-- Reports unaddressed review/issue comments
+- For PRs with unaddressed feedback (reviews, inline comments, issue comments), checks out the branch and invokes Claude Code (`claude --print`) to implement changes, run tests, commit, and push
 
 Run manually or via cron:
 
