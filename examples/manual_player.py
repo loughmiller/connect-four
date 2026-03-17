@@ -59,9 +59,12 @@ def main():
     print(f"Server: {base_url}\n")
 
     while True:
-        # Wait for our turn
+        # Wait for our turn (retry on timeout)
         print("Waiting for your turn...")
         response = requests.get(f"{base_url}/games/{game_id}/turn?player={player}")
+        if response.status_code == 408:
+            continue
+        response.raise_for_status()
         state = response.json()
 
         print_board(state["board"])

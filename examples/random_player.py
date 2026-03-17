@@ -41,8 +41,11 @@ def main():
     base_url = sys.argv[3] if len(sys.argv) > 3 else "http://localhost:5000"
 
     while True:
-        # Wait for our turn
+        # Wait for our turn (retry on timeout)
         response = requests.get(f"{base_url}/games/{game_id}/turn?player={player}")
+        if response.status_code == 408:
+            continue
+        response.raise_for_status()
         state = response.json()
 
         if state["status"] != "in_progress":
