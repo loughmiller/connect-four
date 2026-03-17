@@ -13,9 +13,14 @@ RUN pip install --break-system-packages --root-user-action=ignore \
 ARG CLAUDE_CODE_VERSION=latest
 RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}
 
+RUN useradd -m -s /bin/bash claude
+
 COPY tools/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
 WORKDIR /work
+RUN chown claude:claude /work
+
+USER claude
 
 CMD ["/usr/local/bin/entrypoint.sh"]
