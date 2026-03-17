@@ -1,0 +1,6 @@
+services:
+  server:
+    build: .
+    image: connect-four
+    ports:
+      - "8080:8080"
