@@ -62,6 +62,45 @@ def test_create_multiple_games_unique_ids(client):
     assert len(games) == 2
 
 
+# --- GET /games ---
+
+def test_list_games_empty(client):
+    response = client.get("/games")
+    assert response.status_code == 200
+    assert response.get_json() == []
+
+
+def test_list_games_returns_all(client):
+    client.post("/games")
+    client.post("/games")
+    data = client.get("/games").get_json()
+    assert len(data) == 2
+
+
+def test_list_games_response_fields(client):
+    client.post("/games")
+    data = client.get("/games").get_json()
+    assert "game_id" in data[0]
+    assert "status" in data[0]
+    assert "current_player" in data[0]
+    assert "board" not in data[0]
+
+
+def test_list_games_filter_by_status(client):
+    id1 = client.post("/games").get_json()["game_id"]
+    client.post("/games")
+    games[id1].status = "player_1_wins"
+    data = client.get("/games?status=in_progress").get_json()
+    assert len(data) == 1
+    assert data[0]["status"] == "in_progress"
+
+
+def test_list_games_filter_no_match(client):
+    client.post("/games")
+    data = client.get("/games?status=draw").get_json()
+    assert data == []
+
+
 # --- GET /games/<game_id> ---
 
 def test_get_game_returns_200(client, game_id):

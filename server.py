@@ -46,6 +46,21 @@ def create_game():
     }), 201
 
 
+@app.route("/games", methods=["GET"])
+def list_games():
+    status_filter = request.args.get("status")
+    result = []
+    for game in games.values():
+        if status_filter and game.status != status_filter:
+            continue
+        result.append({
+            "game_id": game.id,
+            "status": game.status,
+            "current_player": game.current_player,
+        })
+    return jsonify(result), 200
+
+
 def _game_response(game):
     return jsonify({
         "game_id": game.id,
