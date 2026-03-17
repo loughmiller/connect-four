@@ -393,6 +393,7 @@ def test_main_orchestrates_correctly(mock_secrets, mock_verify, mock_chdir, mock
     mock_secrets.assert_called_once()
     mock_verify.assert_called_once()
     mock_chdir.assert_called_once_with("/workspace")
-    mock_run.assert_called_once_with("git checkout main && git pull")
+    mock_run.assert_any_call("git checkout main && git pull")
+    mock_run.assert_any_call("git remote prune origin", check=False)
     mock_prs.assert_called_once()
     mock_issues.assert_called_once_with({7, 12})

@@ -270,6 +270,7 @@ def main():
 
     os.chdir("/workspace")
     run("git checkout main && git pull")
+    run("git remote prune origin", check=False)
 
     merged_issue_numbers = handle_prs()
     handle_issues(merged_issue_numbers)
