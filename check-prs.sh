@@ -16,9 +16,9 @@ if [ -f /workspace/.devcontainer/load-secrets.sh ]; then
     source ~/.zshenv 2>/dev/null || true
 fi
 
-# Verify gh is authenticated
-if ! gh auth status &>/dev/null; then
-    echo "Error: gh CLI is not authenticated. Set GITHUB_TOKEN or run 'gh auth login'."
+# Verify gh can reach the API
+if ! gh api "repos/${REPO}" --jq '.full_name' &>/dev/null; then
+    echo "Error: gh CLI cannot access ${REPO}. Check GITHUB_TOKEN or run 'gh auth login'."
     exit 1
 fi
 
