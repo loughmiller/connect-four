@@ -1,7 +1,8 @@
 import threading
+import time
 import pytest
 import server
-from server import app, games
+from server import app, games, cleanup_games, start_cleanup_thread
 
 
 @pytest.fixture(autouse=True)
@@ -245,3 +246,51 @@ def test_make_move_win_updates_status(client, game_id):
     col, player = moves[-1]
     data = client.post(f"/games/{game_id}/moves", json={"column": col, "player": player}).get_json()
     assert data["status"] == "player_1_wins"
+
+
+# --- cleanup_games ---
+
+def test_cleanup_removes_expired_completed_games(client):
+    data = client.post("/games").get_json()
+    gid = data["game_id"]
+    game = games[gid]
+    game.status = "player_1_wins"
+    game.completed_at = time.monotonic() - server.GAME_TTL - 1
+    cleanup_games()
+    assert gid not in games
+
+
+def test_cleanup_keeps_recent_completed_games(client):
+    data = client.post("/games").get_json()
+    gid = data["game_id"]
+    game = games[gid]
+    game.status = "player_1_wins"
+    game.completed_at = time.monotonic()
+    cleanup_games()
+    assert gid in games
+
+
+def test_cleanup_keeps_in_progress_games(client):
+    data = client.post("/games").get_json()
+    gid = data["game_id"]
+    cleanup_games()
+    assert gid in games
+
+
+def test_cleanup_thread_runs_periodically(client):
+    data = client.post("/games").get_json()
+    gid = data["game_id"]
+    game = games[gid]
+    game.status = "player_1_wins"
+    game.completed_at = time.monotonic() - server.GAME_TTL - 1
+
+    original = server.CLEANUP_INTERVAL
+    server.CLEANUP_INTERVAL = 0.01
+    try:
+        stop = start_cleanup_thread()
+        time.sleep(0.05)
+        stop.set()
+    finally:
+        server.CLEANUP_INTERVAL = original
+
+    assert gid not in games

@@ -1,3 +1,6 @@
+import threading
+import time
+
 from flask import Flask, jsonify, request
 from game import Game
 
@@ -5,6 +8,30 @@ app = Flask(__name__)
 games = {}
 
 LONG_POLL_TIMEOUT = 30
+GAME_TTL = 300  # seconds to keep completed games before cleanup
+CLEANUP_INTERVAL = 60  # seconds between cleanup runs
+
+
+def cleanup_games():
+    now = time.monotonic()
+    expired = [
+        gid for gid, game in games.items()
+        if game.completed_at is not None and now - game.completed_at >= GAME_TTL
+    ]
+    for gid in expired:
+        del games[gid]
+
+
+def _run_cleanup_loop(stop_event):
+    while not stop_event.wait(CLEANUP_INTERVAL):
+        cleanup_games()
+
+
+def start_cleanup_thread():
+    stop_event = threading.Event()
+    thread = threading.Thread(target=_run_cleanup_loop, args=(stop_event,), daemon=True)
+    thread.start()
+    return stop_event
 
 
 @app.route("/games", methods=["POST"])
