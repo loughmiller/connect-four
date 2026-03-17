@@ -1,4 +1,5 @@
 import threading
+import time
 import uuid
 
 ROWS = 6
@@ -11,6 +12,7 @@ class Game:
         self.board = [[0] * COLS for _ in range(ROWS)]
         self.current_player = 1
         self.status = "in_progress"
+        self.completed_at = None
         self._condition = threading.Condition()
 
     def make_move(self, player, column):
@@ -35,8 +37,10 @@ class Game:
 
             if self._check_win(row, column):
                 self.status = f"player_{self.current_player}_wins"
+                self.completed_at = time.monotonic()
             elif self._is_full():
                 self.status = "draw"
+                self.completed_at = time.monotonic()
             else:
                 self.current_player = 2 if self.current_player == 1 else 1
 

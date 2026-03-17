@@ -152,3 +152,33 @@ def test_no_win_continues():
     game = Game()
     game.make_move(1, 0)
     assert game.status == "in_progress"
+
+
+def test_new_game_completed_at_is_none():
+    game = Game()
+    assert game.completed_at is None
+
+
+def test_completed_at_set_on_win():
+    game = Game()
+    moves = [0, 4, 1, 5, 2, 6, 3]
+    for col in moves:
+        game.make_move(game.current_player, col)
+    assert game.completed_at is not None
+
+
+def test_completed_at_set_on_draw():
+    game = Game()
+    for r in range(ROWS):
+        for c in range(COLS):
+            game.board[r][c] = 2
+    game.board[0][0] = 0
+    game.current_player = 1
+    game.make_move(1, 0)
+    assert game.completed_at is not None
+
+
+def test_completed_at_not_set_while_in_progress():
+    game = Game()
+    game.make_move(1, 0)
+    assert game.completed_at is None
