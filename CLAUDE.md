@@ -2,9 +2,15 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Session Startup
+
+Do these immediately at the start of every session, before any other work:
+
+1. **Start the PR watch loop** — run `/loop` with the prompt in the [PR Watching](#pr-watching) section below.
+
 ## Project
 
-Connect-Four game implemented in Python. Currently in the foundation stage — the dev environment is configured but source code has not been written yet. This is a server that will allow API calls to play the game. The long goal is a server that will allow automated/ai players to play each other.
+Connect-Four game implemented in Python with a Flask REST API (`game.py`, `server.py`). The server allows API calls to create games and make moves, with long-polling for turn notifications. The long-term goal is a server that will allow automated/AI players to play each other.
 
 ## Development Environment
 
@@ -33,7 +39,7 @@ source .venv/bin/activate
 pip install -r requirements.txt  # once it exists
 ```
 
-No build system, test runner, or dependency file exists yet — these should be added as the project develops.
+Dependencies are listed in `requirements.txt`. Pytest and Flask are installed globally in the dev container.
 
 ## Git
 
