@@ -1,6 +1,6 @@
 import json
 import subprocess
-from unittest.mock import patch, mock_open, call
+from unittest.mock import patch, call
 
 import tools.manage_github as manage_github
 
@@ -70,25 +70,6 @@ def test_gh_api_strips_trailing_slash(mock_run):
     cmd = mock_run.call_args[0][0]
     assert '"repos/loughmiller/connect-four"' in cmd
     assert 'connect-four/"' not in cmd
-
-
-# --- load_secrets() ---
-
-@patch("tools.manage_github.os.path.isfile", side_effect=lambda f: f == manage_github.ENV_FILE)
-@patch("builtins.open", mock_open(read_data="GH_TOKEN=abc123\n# comment\n\nANTHROPIC_API_KEY=sk-test\n"))
-@patch.dict("os.environ", {}, clear=True)
-def test_load_secrets_from_env_file(mock_isfile):
-    """load_secrets() reads .env file and sets env vars."""
-    manage_github.load_secrets()
-    import os
-    assert os.environ["GH_TOKEN"] == "abc123"
-    assert os.environ["ANTHROPIC_API_KEY"] == "sk-test"
-
-
-@patch("tools.manage_github.os.path.isfile", return_value=False)
-def test_load_secrets_no_file(mock_isfile):
-    """load_secrets() is a no-op when no secrets file exists."""
-    manage_github.load_secrets()
 
 
 # --- verify_prerequisites() ---
@@ -385,12 +366,10 @@ def test_handle_issues_none_body_defaults_to_empty(mock_gh, mock_run, mock_claud
 @patch("tools.manage_github.run")
 @patch("tools.manage_github.os.chdir")
 @patch("tools.manage_github.verify_prerequisites")
-@patch("tools.manage_github.load_secrets")
-def test_main_orchestrates_correctly(mock_secrets, mock_verify, mock_chdir, mock_run, mock_prs, mock_issues):
+def test_main_orchestrates_correctly(mock_verify, mock_chdir, mock_run, mock_prs, mock_issues):
     """main() passes merged issue numbers from handle_prs to handle_issues."""
     mock_prs.return_value = {7, 12}
     manage_github.main()
-    mock_secrets.assert_called_once()
     mock_verify.assert_called_once()
     mock_chdir.assert_called_once_with(manage_github.WORK_DIR)
     mock_run.assert_any_call("git checkout main && git pull")

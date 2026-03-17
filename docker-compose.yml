@@ -12,7 +12,7 @@ services:
     image: connect-four-manage-github
     env_file: .env
     environment:
-      - MANAGE_GITHUB_INTERVAL=300
+      - MANAGE_GITHUB_INTERVAL=60
     volumes:
       - manage-github-work:/work
     restart: unless-stopped

@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-INTERVAL="${MANAGE_GITHUB_INTERVAL:-300}"
+INTERVAL="${MANAGE_GITHUB_INTERVAL:-60}"
 REPO_URL="https://github.com/loughmiller/connect-four.git"
 REPO_DIR="/work/connect-four"
 

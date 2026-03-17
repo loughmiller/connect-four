@@ -16,7 +16,6 @@ import sys
 
 REPO = "loughmiller/connect-four"
 WORK_DIR = os.environ.get("MANAGE_GITHUB_WORK_DIR", "/workspace")
-ENV_FILE = os.path.join(WORK_DIR, ".env")
 
 # ---------------------------------------------------------------------------
 # Prompt templates (passed to Claude Code via run_claude)
@@ -88,17 +87,6 @@ def gh_api(endpoint, *, method="GET", fields=None, jq=None):
         cmd += f" --jq '{jq}'"
         return run(cmd)
     return json.loads(run(cmd))
-
-
-def load_secrets():
-    """Export secrets from .env into the environment."""
-    if os.path.isfile(ENV_FILE):
-        with open(ENV_FILE) as f:
-            for line in f:
-                line = line.strip()
-                if line and not line.startswith("#") and "=" in line:
-                    key, _, value = line.partition("=")
-                    os.environ[key] = value
 
 
 def verify_prerequisites():
@@ -269,7 +257,6 @@ def handle_issues(merged_issue_numbers=None):
 
 
 def main():
-    load_secrets()
     verify_prerequisites()
 
     os.chdir(WORK_DIR)
