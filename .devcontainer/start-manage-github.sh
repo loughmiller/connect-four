@@ -19,18 +19,18 @@ LOG="/tmp/manage-github.log"
 git config --global user.name "manage-github-bot"
 git config --global user.email "bot@connect-four.local"
 
-# Retry clone up to 5 times (network may not be ready after firewall init)
+# Retry clone up to 6 times (network may not be ready after firewall init)
 if [ ! -d "$WORK_DIR/.git" ]; then
-    for i in 1 2 3 4 5; do
+    for i in 1 2 3 4 5 6; do
         if git clone "$REPO_URL" "$WORK_DIR"; then
             break
         fi
-        echo "Clone attempt $i failed, retrying in 5s..." >&2
+        echo "Clone attempt $i failed, retrying in 10s..." >&2
         rm -rf "$WORK_DIR"
-        sleep 5
+        sleep 10
     done
     if [ ! -d "$WORK_DIR/.git" ]; then
-        echo "Failed to clone after 5 attempts, giving up." >&2
+        echo "Failed to clone after 6 attempts, giving up." >&2
         exit 1
     fi
 fi
