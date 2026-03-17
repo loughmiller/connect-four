@@ -211,10 +211,19 @@ def handle_issues():
             print(f"Issue #{issue_number}: skipping (label: {issue_labels}).")
             continue
 
-        # Check if a branch already exists for this issue
+        # Check if a branch already exists for this issue (open PRs)
         branch_name = f"issue-{issue_number}"
         if branch_name in pr_branches:
             print(f"Issue #{issue_number}: PR branch already exists, skipping.")
+            continue
+
+        # Check if any PR (open, merged, or closed) already references this issue
+        linked_prs = run(
+            f'gh pr list --repo {REPO} --search "issue #{issue_number}" --state all --json number --jq "length"',
+            check=False,
+        )
+        if linked_prs and linked_prs != "0":
+            print(f"Issue #{issue_number}: already has a linked PR, skipping.")
             continue
 
         print(f"Issue #{issue_number}: {issue_title}")
