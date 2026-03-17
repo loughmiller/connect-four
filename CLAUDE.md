@@ -58,8 +58,8 @@ Framework: `pytest`
 
 ```bash
 pytest                                  # run all tests
-pytest tests/test_board.py              # run a single file
-pytest tests/test_board.py::test_name   # run a single test
+pytest tests/src/test_game.py              # run a single file
+pytest tests/src/test_game.py::test_name   # run a single test
 pytest -v                               # verbose output
 ```
 
