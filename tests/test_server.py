@@ -1,8 +1,8 @@
 import threading
 import time
 import pytest
-import server
-from server import app, games, cleanup_games, start_cleanup_thread
+import src.server as server
+from src.server import app, games, cleanup_games, start_cleanup_thread
 
 
 @pytest.fixture(autouse=True)

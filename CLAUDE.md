@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Connect-Four game implemented in Python with a Flask REST API (`game.py`, `server.py`). The server allows API calls to create games and make moves, with long-polling for turn notifications. The long-term goal is a server that will allow automated/AI players to play each other.
+Connect-Four game implemented in Python with a Flask REST API (`src/game.py`, `src/server.py`). The server allows API calls to create games and make moves, with long-polling for turn notifications. The long-term goal is a server that will allow automated/AI players to play each other.
 
 ## Development Environment
 
@@ -70,7 +70,7 @@ pytest -v                               # verbose output
 
 ## PR and Issue Automation
 
-`manage_github.py` runs outside of live Claude sessions to handle PRs and issues. The script:
+`tools/manage_github.py` runs outside of live Claude sessions to handle PRs and issues. The script:
 - Merges approved PRs with passing checks (squash merge, cleans up local branch)
 - For PRs with unaddressed feedback, invokes Claude Code to implement changes, run tests, commit, and push
 - For open issues without an existing PR, creates a feature branch (`issue-<number>`), invokes Claude Code to implement the fix, and opens a PR
@@ -79,5 +79,5 @@ pytest -v                               # verbose output
 Run manually or via cron:
 
 ```bash
-./manage_github.py
+python3 tools/manage_github.py
 ```
