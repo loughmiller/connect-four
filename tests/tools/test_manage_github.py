@@ -85,16 +85,6 @@ def test_load_secrets_from_env_file(mock_isfile):
     assert os.environ["ANTHROPIC_API_KEY"] == "sk-test"
 
 
-@patch("tools.manage_github.os.path.isfile", side_effect=lambda f: f == manage_github.SECRETS_FILE)
-@patch("builtins.open", mock_open(read_data='{"GH_TOKEN": "abc123"}'))
-@patch.dict("os.environ", {}, clear=True)
-def test_load_secrets_from_secrets_json(mock_isfile):
-    """load_secrets() falls back to secrets.json when .env is missing."""
-    manage_github.load_secrets()
-    import os
-    assert os.environ["GH_TOKEN"] == "abc123"
-
-
 @patch("tools.manage_github.os.path.isfile", return_value=False)
 def test_load_secrets_no_file(mock_isfile):
     """load_secrets() is a no-op when no secrets file exists."""
