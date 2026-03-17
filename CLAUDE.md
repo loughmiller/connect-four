@@ -76,10 +76,11 @@ pytest -v                               # verbose output
 - For open issues without an existing PR, creates a feature branch (`issue-<number>`), invokes Claude Code to implement the fix, and opens a PR
 - Skips issues labeled `wontfix`, `question`, `duplicate`, or `invalid`
 
-Runs automatically in the background when the devcontainer starts (every 60s). Logs at `/tmp/manage-github.log`.
+Runs automatically in the background when the devcontainer starts (every 60s). A watchdog script (`watchdog-manage-github.sh`) checks every 30s and restarts the process if it exits unexpectedly. Logs at `/tmp/manage-github.log`.
 
 ```bash
 tail -f /tmp/manage-github.log                                              # watch logs
+tail -f /tmp/manage-github-watchdog.log                                     # watch watchdog logs
 MANAGE_GITHUB_WORK_DIR=/tmp/manage-github-work python3 tools/manage_github.py  # manual run
 ```
 
