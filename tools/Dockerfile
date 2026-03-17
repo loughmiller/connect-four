@@ -1,13 +1,14 @@
-FROM node:20-slim
+FROM python:3-slim
 
-RUN apt-get update && apt-get install -y --no-install-recommends --root-user-action=ignore \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
-    python3 \
-    python3-pip \
+    curl \
     gh \
+  && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+  && apt-get install -y --no-install-recommends nodejs \
   && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --break-system-packages --root-user-action=ignore \
+RUN pip install --root-user-action=ignore \
     flask pytest pytest-cov
 
 ARG CLAUDE_CODE_VERSION=latest
