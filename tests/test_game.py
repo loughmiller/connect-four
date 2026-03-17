@@ -238,6 +238,24 @@ def test_completed_at_set_on_draw():
     assert game.completed_at is not None
 
 
+def test_full_game_draw():
+    game = Game()
+    # 42-move sequence that fills the board with no four-in-a-row.
+    # Pattern [0,2,1,3,4,6,5] repeated 6 times fills columns so that
+    # each column alternates players and no horizontal, vertical, or
+    # diagonal line of four exists.
+    moves = [0, 2, 1, 3, 4, 6, 5] * 6
+    assert len(moves) == 42
+    for i, col in enumerate(moves):
+        player = 1 if i % 2 == 0 else 2
+        assert game.current_player == player
+        assert game.status == "in_progress"
+        game.make_move(player, col)
+    assert game.status == "draw"
+    assert game.completed_at is not None
+    assert all(game.board[0][c] != 0 for c in range(COLS))
+
+
 def test_completed_at_not_set_while_in_progress():
     game = Game()
     game.make_move(1, 0)

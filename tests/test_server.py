@@ -277,6 +277,21 @@ def test_make_move_game_over(client, game_id):
     assert "error" in response.get_json()
 
 
+def test_full_game_draw_via_api(client, game_id):
+    moves = [0, 2, 1, 3, 4, 6, 5] * 6
+    for i, col in enumerate(moves):
+        player = 1 if i % 2 == 0 else 2
+        response = client.post(
+            f"/games/{game_id}/moves", json={"column": col, "player": player}
+        )
+        assert response.status_code == 200
+        data = response.get_json()
+        if i < 41:
+            assert data["status"] == "in_progress"
+        else:
+            assert data["status"] == "draw"
+
+
 def test_make_move_win_updates_status(client, game_id):
     # Player 1 wins horizontally: cols 0,1,2,3 with player 2 at cols 4,5,6
     moves = [(0, 1), (4, 2), (1, 1), (5, 2), (2, 1), (6, 2), (3, 1)]
