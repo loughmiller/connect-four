@@ -84,14 +84,16 @@ pytest -v           # verbose
 - Invokes Claude Code to address PR review feedback
 - Creates branches and PRs for open issues
 
-Run it manually or as a container:
+It runs automatically in the background when the devcontainer starts, checking every 60 seconds. Logs are at `/tmp/manage-github.log`:
 
 ```bash
-# Manual
-python3 tools/manage_github.py
-
-# Container (runs every 60s)
-docker-compose up -d manage-github
+tail -f /tmp/manage-github.log
 ```
 
-Requires `GH_TOKEN` and `ANTHROPIC_API_KEY` in a `.env` file — see `.env.example`.
+To run manually:
+
+```bash
+MANAGE_GITHUB_WORK_DIR=/tmp/manage-github-work python3 tools/manage_github.py
+```
+
+Requires `GH_TOKEN` in a `.env` file — see `.env.example`.

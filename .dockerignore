@@ -5,8 +5,7 @@ __pycache__
 .coverage
 .pytest_cache
 tests
-tools/manage_github.py
-tools/Dockerfile
+tools
 examples
 .devcontainer
 .claude
