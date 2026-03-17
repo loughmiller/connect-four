@@ -68,13 +68,13 @@ pytest -v                               # verbose output
 - Install pytest: `pip install pytest pytest-cov`
 - 100% coverage is required: `pytest --cov --cov-fail-under=100`
 
-## PR Watching
+## PR and Issue Automation
 
-PR checks run via `check-prs.sh` outside of live Claude sessions. The script:
-- Loads secrets and authenticates with `gh`
-- Fetches all open PRs on `loughmiller/connect-four`
+`check-prs.sh` runs outside of live Claude sessions to handle PRs and issues. The script:
 - Merges approved PRs with passing checks (squash merge, cleans up local branch)
-- For PRs with unaddressed feedback (reviews, inline comments, issue comments), checks out the branch and invokes Claude Code (`claude --print`) to implement changes, run tests, commit, and push
+- For PRs with unaddressed feedback, invokes Claude Code to implement changes, run tests, commit, and push
+- For open issues without an existing PR, creates a feature branch (`issue-<number>`), invokes Claude Code to implement the fix, and opens a PR
+- Skips issues labeled `wontfix`, `question`, `duplicate`, or `invalid`
 
 Run manually or via cron:
 
