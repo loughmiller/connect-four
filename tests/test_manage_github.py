@@ -1,0 +1,327 @@
+import json
+import subprocess
+from unittest.mock import patch, mock_open, call
+
+import manage_github
+
+
+# --- run() ---
+
+@patch("manage_github.subprocess.run")
+def test_run_returns_stripped_stdout(mock_subproc):
+    mock_subproc.return_value.stdout = "  hello  "
+    result = manage_github.run("echo hello")
+    assert result == "hello"
+    mock_subproc.assert_called_once_with(
+        "echo hello", shell=True, text=True, check=True, capture_output=True,
+    )
+
+
+@patch("manage_github.subprocess.run")
+def test_run_capture_false_returns_empty(mock_subproc):
+    result = manage_github.run("echo hello", capture=False)
+    assert result == ""
+    mock_subproc.assert_called_once_with(
+        "echo hello", shell=True, text=True, check=True, capture_output=False,
+    )
+
+
+# --- gh_api() ---
+
+@patch("manage_github.run")
+def test_gh_api_get_with_jq(mock_run):
+    mock_run.return_value = "loughmiller/connect-four"
+    result = manage_github.gh_api("", jq=".full_name")
+    mock_run.assert_called_once_with(
+        'gh api "repos/loughmiller/connect-four" --jq \'.full_name\''
+    )
+    assert result == "loughmiller/connect-four"
+
+
+@patch("manage_github.run")
+def test_gh_api_get_returns_parsed_json(mock_run):
+    mock_run.return_value = '{"id": 1}'
+    result = manage_github.gh_api("pulls/1")
+    mock_run.assert_called_once_with(
+        'gh api "repos/loughmiller/connect-four/pulls/1"'
+    )
+    assert result == {"id": 1}
+
+
+@patch("manage_github.run")
+def test_gh_api_with_method_and_fields(mock_run):
+    mock_run.return_value = "{}"
+    manage_github.gh_api("pulls/1/merge", method="PUT", fields={"merge_method": "squash"})
+    cmd = mock_run.call_args[0][0]
+    assert "-X PUT" in cmd
+    assert "-f merge_method=squash" in cmd
+
+
+@patch("manage_github.run")
+def test_gh_api_strips_trailing_slash(mock_run):
+    mock_run.return_value = '"loughmiller/connect-four"'
+    manage_github.gh_api("", jq=".full_name")
+    cmd = mock_run.call_args[0][0]
+    assert '"repos/loughmiller/connect-four"' in cmd
+    assert 'connect-four/"' not in cmd
+
+
+# --- load_secrets() ---
+
+@patch("manage_github.os.path.isfile", return_value=True)
+@patch("builtins.open", mock_open(read_data='{"GH_TOKEN": "abc123"}'))
+@patch.dict("os.environ", {}, clear=True)
+def test_load_secrets_sets_env_vars(mock_isfile):
+    manage_github.load_secrets()
+    import os
+    assert os.environ["GH_TOKEN"] == "abc123"
+
+
+@patch("manage_github.os.path.isfile", return_value=False)
+def test_load_secrets_no_file(mock_isfile):
+    # Should not raise
+    manage_github.load_secrets()
+    mock_isfile.assert_called_once()
+
+
+# --- verify_prerequisites() ---
+
+@patch("manage_github.shutil.which", return_value="/usr/bin/claude")
+@patch("manage_github.gh_api", return_value="loughmiller/connect-four")
+def test_verify_prerequisites_success(mock_gh, mock_which):
+    manage_github.verify_prerequisites()
+
+
+@patch("manage_github.sys.exit")
+@patch("manage_github.gh_api", side_effect=subprocess.CalledProcessError(1, "gh"))
+def test_verify_prerequisites_gh_fails(mock_gh, mock_exit):
+    manage_github.verify_prerequisites()
+    mock_exit.assert_called_once_with(1)
+
+
+@patch("manage_github.sys.exit")
+@patch("manage_github.shutil.which", return_value=None)
+@patch("manage_github.gh_api", return_value="loughmiller/connect-four")
+def test_verify_prerequisites_no_claude(mock_gh, mock_which, mock_exit):
+    manage_github.verify_prerequisites()
+    mock_exit.assert_called_once_with(1)
+
+
+# --- run_claude() ---
+
+@patch("manage_github.subprocess.run")
+def test_run_claude_calls_subprocess(mock_subproc):
+    manage_github.run_claude("fix the bug")
+    mock_subproc.assert_called_once_with(
+        ["claude", "--print", "--dangerously-skip-permissions"],
+        input="fix the bug", text=True, check=False,
+    )
+
+
+# --- handle_prs() ---
+
+@patch("manage_github.gh_api")
+def test_handle_prs_no_prs(mock_gh):
+    mock_gh.return_value = ""
+    manage_github.handle_prs()
+    mock_gh.assert_called_once()
+
+
+@patch("manage_github.run")
+@patch("manage_github.gh_api")
+def test_handle_prs_approved_passing_merges(mock_gh, mock_run):
+    mock_gh.side_effect = [
+        "42",                                                   # pulls jq -> pr numbers
+        {"head": {"ref": "feat-x", "sha": "abc123"}},          # pulls/42
+        [{"state": "APPROVED", "body": ""}],                    # pulls/42/reviews
+        "success",                                              # commits/abc123/status
+        {},                                                     # pulls/42/merge
+    ]
+    manage_github.handle_prs()
+    # Verify merge was called
+    merge_call = mock_gh.call_args_list[4]
+    assert "merge" in merge_call[0][0]
+    assert merge_call[1]["method"] == "PUT"
+    # Verify git cleanup
+    mock_run.assert_any_call("git checkout main && git pull")
+    mock_run.assert_any_call("git branch -d feat-x", check=False)
+
+
+@patch("manage_github.run_claude")
+@patch("manage_github.run")
+@patch("manage_github.gh_api")
+def test_handle_prs_approved_failing_checks_processes_feedback(mock_gh, mock_run, mock_claude):
+    mock_gh.side_effect = [
+        "42",                                                   # pulls jq
+        {"head": {"ref": "feat-x", "sha": "abc123"}},          # pulls/42
+        [{"state": "APPROVED", "body": "looks good"}],          # reviews
+        "failure",                                              # status -> checks fail
+        [{"body": "fix typo"}],                                 # review comments
+        [{"body": "nice work"}],                                # issue comments
+    ]
+    manage_github.handle_prs()
+    mock_claude.assert_called_once()
+
+
+@patch("manage_github.run_claude")
+@patch("manage_github.run")
+@patch("manage_github.gh_api")
+def test_handle_prs_no_comments_skips(mock_gh, mock_run, mock_claude):
+    mock_gh.side_effect = [
+        "42",                                                   # pulls jq
+        {"head": {"ref": "feat-x", "sha": "abc123"}},          # pulls/42
+        [{"state": "CHANGES_REQUESTED", "body": ""}],           # reviews (no body)
+        "success",                                              # status
+        [],                                                     # review comments (empty)
+        [],                                                     # issue comments (empty)
+    ]
+    manage_github.handle_prs()
+    mock_claude.assert_not_called()
+
+
+@patch("manage_github.run_claude")
+@patch("manage_github.run")
+@patch("manage_github.gh_api")
+def test_handle_prs_with_feedback_invokes_claude(mock_gh, mock_run, mock_claude):
+    mock_gh.side_effect = [
+        "42",                                                   # pulls jq
+        {"head": {"ref": "feat-x", "sha": "abc123"}},          # pulls/42
+        [{"state": "CHANGES_REQUESTED", "body": ""}],           # reviews
+        "success",                                              # status
+        [{"body": "fix this"}],                                 # review comments
+        [],                                                     # issue comments
+    ]
+    manage_github.handle_prs()
+    mock_claude.assert_called_once()
+    prompt = mock_claude.call_args[0][0]
+    assert "PR #42" in prompt
+    assert "feat-x" in prompt
+    mock_run.assert_any_call("git fetch origin feat-x")
+    mock_run.assert_any_call("git checkout feat-x")
+    mock_run.assert_any_call("git pull origin feat-x")
+    mock_run.assert_any_call("git checkout main")
+
+
+@patch("manage_github.run_claude")
+@patch("manage_github.run")
+@patch("manage_github.gh_api")
+def test_handle_prs_check_status_error_treated_as_unknown(mock_gh, mock_run, mock_claude):
+    mock_gh.side_effect = [
+        "42",                                                   # pulls jq
+        {"head": {"ref": "feat-x", "sha": "abc123"}},          # pulls/42
+        [{"state": "APPROVED", "body": ""}],                    # reviews (approved)
+        subprocess.CalledProcessError(1, "gh"),                 # status -> error
+        # approved + checks_pass (unknown != failure) -> merge
+        {},                                                     # pulls/42/merge
+    ]
+    manage_github.handle_prs()
+    merge_call = mock_gh.call_args_list[4]
+    assert "merge" in merge_call[0][0]
+
+
+# --- handle_issues() ---
+
+@patch("manage_github.gh_api")
+def test_handle_issues_no_issues(mock_gh):
+    mock_gh.side_effect = [
+        "",     # issues jq -> empty
+        "",     # pulls jq -> branches
+    ]
+    manage_github.handle_issues()
+
+
+@patch("manage_github.run")
+@patch("manage_github.gh_api")
+def test_handle_issues_skip_label(mock_gh, mock_run):
+    mock_gh.side_effect = [
+        "5",                                                    # issues jq
+        "",                                                     # pulls jq (no branches)
+        {"title": "Bug", "body": "fix it",
+         "labels": [{"name": "wontfix"}]},                     # issues/5
+        [],                                                     # issues/5/comments
+    ]
+    manage_github.handle_issues()
+    # Should not create a branch
+    assert not any("checkout -b" in str(c) for c in mock_run.call_args_list)
+
+
+@patch("manage_github.run")
+@patch("manage_github.gh_api")
+def test_handle_issues_existing_branch_skips(mock_gh, mock_run):
+    mock_gh.side_effect = [
+        "5",                                                    # issues jq
+        "issue-5",                                              # pulls jq -> branch exists
+        {"title": "Bug", "body": "fix it", "labels": []},      # issues/5
+        [],                                                     # issues/5/comments
+    ]
+    manage_github.handle_issues()
+    assert not any("checkout -b" in str(c) for c in mock_run.call_args_list)
+
+
+@patch("manage_github.run_claude")
+@patch("manage_github.run")
+@patch("manage_github.gh_api")
+def test_handle_issues_linked_pr_skips(mock_gh, mock_run, mock_claude):
+    mock_gh.side_effect = [
+        "5",                                                    # issues jq
+        "",                                                     # pulls jq (no branches)
+        {"title": "Bug", "body": "fix it", "labels": []},      # issues/5
+        [],                                                     # issues/5/comments
+    ]
+    # The linked PR check uses run(), not gh_api
+    mock_run.return_value = "1"
+    manage_github.handle_issues()
+    mock_claude.assert_not_called()
+
+
+@patch("manage_github.run_claude")
+@patch("manage_github.run")
+@patch("manage_github.gh_api")
+def test_handle_issues_normal_processing(mock_gh, mock_run, mock_claude):
+    mock_gh.side_effect = [
+        "5",                                                    # issues jq
+        "",                                                     # pulls jq (no branches)
+        {"title": "Add feature", "body": "please", "labels": []},  # issues/5
+        [{"body": "me too"}],                                   # issues/5/comments
+    ]
+    mock_run.return_value = "0"  # no linked PRs
+    manage_github.handle_issues()
+    mock_claude.assert_called_once()
+    prompt = mock_claude.call_args[0][0]
+    assert "issue #5" in prompt
+    assert "Add feature" in prompt
+    assert "please" in prompt
+
+
+@patch("manage_github.run_claude")
+@patch("manage_github.run")
+@patch("manage_github.gh_api")
+def test_handle_issues_none_body_defaults_to_empty(mock_gh, mock_run, mock_claude):
+    mock_gh.side_effect = [
+        "5",
+        "",
+        {"title": "Bug", "body": None, "labels": []},
+        [],
+    ]
+    mock_run.return_value = "0"
+    manage_github.handle_issues()
+    prompt = mock_claude.call_args[0][0]
+    assert "Issue body:\n\n" in prompt
+
+
+# --- main() ---
+
+@patch("manage_github.handle_issues")
+@patch("manage_github.handle_prs")
+@patch("manage_github.run")
+@patch("manage_github.os.chdir")
+@patch("manage_github.verify_prerequisites")
+@patch("manage_github.load_secrets")
+def test_main_orchestrates_correctly(mock_secrets, mock_verify, mock_chdir, mock_run, mock_prs, mock_issues):
+    manage_github.main()
+    mock_secrets.assert_called_once()
+    mock_verify.assert_called_once()
+    mock_chdir.assert_called_once_with("/workspace")
+    mock_run.assert_called_once_with("git checkout main && git pull")
+    mock_prs.assert_called_once()
+    mock_issues.assert_called_once()

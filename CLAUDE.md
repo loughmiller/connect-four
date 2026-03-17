@@ -70,7 +70,7 @@ pytest -v                               # verbose output
 
 ## PR and Issue Automation
 
-`manage-github.py` runs outside of live Claude sessions to handle PRs and issues. The script:
+`manage_github.py` runs outside of live Claude sessions to handle PRs and issues. The script:
 - Merges approved PRs with passing checks (squash merge, cleans up local branch)
 - For PRs with unaddressed feedback, invokes Claude Code to implement changes, run tests, commit, and push
 - For open issues without an existing PR, creates a feature branch (`issue-<number>`), invokes Claude Code to implement the fix, and opens a PR
@@ -79,5 +79,5 @@ pytest -v                               # verbose output
 Run manually or via cron:
 
 ```bash
-./manage-github.py
+./manage_github.py
 ```
