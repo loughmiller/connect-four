@@ -10,10 +10,12 @@ export MANAGE_GITHUB_WORK_DIR="$REPO_DIR"
 # Git identity for commits made by Claude
 git config --global user.name "manage-github-bot"
 git config --global user.email "bot@connect-four.local"
+git config --global safe.directory "$REPO_DIR"
 
-# Initial clone
-if [ ! -d "$REPO_DIR/.git" ]; then
+# Initial clone (or re-clone if owned by a different user from a prior run)
+if [ ! -d "$REPO_DIR/.git" ] || [ ! -O "$REPO_DIR" ]; then
     echo "Cloning repository..."
+    rm -rf "$REPO_DIR"
     git clone "$REPO_URL" "$REPO_DIR"
 fi
 
