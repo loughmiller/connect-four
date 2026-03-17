@@ -4,3 +4,18 @@ services:
     image: connect-four
     ports:
       - "8080:8080"
+
+  manage-github:
+    build:
+      context: .
+      dockerfile: tools/Dockerfile
+    image: connect-four-manage-github
+    env_file: .env
+    environment:
+      - MANAGE_GITHUB_INTERVAL=60
+    volumes:
+      - manage-github-work:/work
+    restart: unless-stopped
+
+volumes:
+  manage-github-work:

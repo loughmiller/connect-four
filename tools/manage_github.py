@@ -15,7 +15,7 @@ import subprocess
 import sys
 
 REPO = "loughmiller/connect-four"
-SECRETS_FILE = "/workspace/secrets.json"
+WORK_DIR = os.environ.get("MANAGE_GITHUB_WORK_DIR", "/workspace")
 
 # ---------------------------------------------------------------------------
 # Prompt templates (passed to Claude Code via run_claude)
@@ -87,14 +87,6 @@ def gh_api(endpoint, *, method="GET", fields=None, jq=None):
         cmd += f" --jq '{jq}'"
         return run(cmd)
     return json.loads(run(cmd))
-
-
-def load_secrets():
-    """Export secrets from secrets.json into the environment."""
-    if os.path.isfile(SECRETS_FILE):
-        with open(SECRETS_FILE) as f:
-            for key, value in json.load(f).items():
-                os.environ[key] = value
 
 
 def verify_prerequisites():
@@ -265,10 +257,9 @@ def handle_issues(merged_issue_numbers=None):
 
 
 def main():
-    load_secrets()
     verify_prerequisites()
 
-    os.chdir("/workspace")
+    os.chdir(WORK_DIR)
     run("git checkout main && git pull")
     run("git remote prune origin", check=False)
 
