@@ -1,0 +1,14 @@
+.git
+.venv
+__pycache__
+*.pyc
+.coverage
+.pytest_cache
+tests
+tools
+examples
+.devcontainer
+.claude
+secrets.json
+*.egg-info
+dist
