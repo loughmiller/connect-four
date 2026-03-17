@@ -361,12 +361,43 @@ def test_handle_issues_none_body_defaults_to_empty(mock_gh, mock_run, mock_claud
 
 # --- main() ---
 
+# --- delete_orphaned_local_branches() ---
+
+@patch("tools.manage_github.run")
+def test_delete_orphaned_local_branches_deletes_gone(mock_run):
+    """Branches marked as 'gone' in git branch -vv are deleted."""
+    mock_run.return_value = (
+        "* main                 abc1234 [origin/main] latest commit\n"
+        "  feat-x               def5678 [origin/feat-x: gone] old commit\n"
+        "  fix-y                ghi9012 [origin/fix-y: gone] another commit\n"
+        "  active               jkl3456 [origin/active] wip"
+    )
+    manage_github.delete_orphaned_local_branches()
+    assert mock_run.call_count == 3  # 1 list + 2 deletes
+    mock_run.assert_any_call("git branch -D feat-x", check=False)
+    mock_run.assert_any_call("git branch -D fix-y", check=False)
+
+
+@patch("tools.manage_github.run")
+def test_delete_orphaned_local_branches_none_gone(mock_run):
+    """No branches deleted when none are marked as gone."""
+    mock_run.return_value = (
+        "* main   abc1234 [origin/main] latest commit\n"
+        "  feat-x def5678 [origin/feat-x] wip"
+    )
+    manage_github.delete_orphaned_local_branches()
+    mock_run.assert_called_once_with("git branch -vv")
+
+
+# --- main() ---
+
 @patch("tools.manage_github.handle_issues")
 @patch("tools.manage_github.handle_prs")
+@patch("tools.manage_github.delete_orphaned_local_branches")
 @patch("tools.manage_github.run")
 @patch("tools.manage_github.os.chdir")
 @patch("tools.manage_github.verify_prerequisites")
-def test_main_orchestrates_correctly(mock_verify, mock_chdir, mock_run, mock_prs, mock_issues):
+def test_main_orchestrates_correctly(mock_verify, mock_chdir, mock_run, mock_delete, mock_prs, mock_issues):
     """main() passes merged issue numbers from handle_prs to handle_issues."""
     mock_prs.return_value = {7, 12}
     manage_github.main()
@@ -374,5 +405,6 @@ def test_main_orchestrates_correctly(mock_verify, mock_chdir, mock_run, mock_prs
     mock_chdir.assert_called_once_with(manage_github.WORK_DIR)
     mock_run.assert_any_call("git checkout main && git pull")
     mock_run.assert_any_call("git remote prune origin", check=False)
+    mock_delete.assert_called_once()
     mock_prs.assert_called_once()
     mock_issues.assert_called_once_with({7, 12})

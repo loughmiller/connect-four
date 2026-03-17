@@ -110,6 +110,17 @@ def run_claude(prompt):
     )
 
 
+def delete_orphaned_local_branches():
+    """Delete local branches whose remote-tracking branch no longer exists."""
+    output = run("git branch -vv")
+    for line in output.splitlines():
+        line = line.strip()
+        if ": gone]" in line:
+            branch = line.split()[0]
+            print(f"Deleting orphaned local branch: {branch}")
+            run(f"git branch -D {branch}", check=False)
+
+
 def handle_prs():
     """Process all open pull requests. Returns set of issue numbers closed by merged PRs."""
     pr_numbers = gh_api("pulls", jq=".[].number").split()
@@ -262,6 +273,7 @@ def main():
     os.chdir(WORK_DIR)
     run("git checkout main && git pull")
     run("git remote prune origin", check=False)
+    delete_orphaned_local_branches()
 
     merged_issue_numbers = handle_prs()
     handle_issues(merged_issue_numbers)
