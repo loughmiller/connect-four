@@ -76,11 +76,11 @@ pytest -v                               # verbose output
 - For open issues without an existing PR, creates a feature branch (`issue-<number>`), invokes Claude Code to implement the fix, and opens a PR
 - Skips issues labeled `wontfix`, `question`, `duplicate`, or `invalid`
 
-Run manually, or as a container on a recurring interval:
+Runs automatically in the background when the devcontainer starts (every 60s). Logs at `/tmp/manage-github.log`.
 
 ```bash
-python3 tools/manage_github.py          # manual
-docker compose up manage-github         # containerized, runs every 5 min
+tail -f /tmp/manage-github.log                                              # watch logs
+MANAGE_GITHUB_WORK_DIR=/tmp/manage-github-work python3 tools/manage_github.py  # manual run
 ```
 
 ## Secrets
@@ -92,4 +92,4 @@ cp .env.example .env
 # Edit .env with your actual tokens
 ```
 
-The devcontainer loads `.env` on startup via `load-secrets.sh`. The `manage-github` container reads `.env` via `docker compose`.
+The devcontainer loads `.env` on startup via `load-secrets.sh`.
