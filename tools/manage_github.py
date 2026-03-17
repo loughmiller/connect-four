@@ -119,8 +119,9 @@ def run_claude(prompt):
 
 
 def handle_prs():
-    """Process all open pull requests."""
+    """Process all open pull requests. Returns set of issue numbers closed by merged PRs."""
     pr_numbers = gh_api("pulls", jq=".[].number").split()
+    merged_issue_numbers = set()
 
     for pr_number in pr_numbers:
         print(f"=== Checking PR #{pr_number} ===")
@@ -148,6 +149,12 @@ def handle_prs():
             gh_api(f"pulls/{pr_number}/merge", method="PUT", fields={"merge_method": "squash"})
             run("git checkout main && git pull")
             run(f"git branch -d {pr_branch}", check=False)
+            # Track issue numbers closed by this merge (branch convention: issue-N)
+            if pr_branch.startswith("issue-"):
+                try:
+                    merged_issue_numbers.add(int(pr_branch[len("issue-"):]))
+                except ValueError:
+                    pass
             print(f"PR #{pr_number} merged and local branch cleaned up.")
             continue
 
@@ -186,9 +193,14 @@ def handle_prs():
         run("git checkout main")
         print(f"PR #{pr_number}: done processing comments.")
 
+    return merged_issue_numbers
 
-def handle_issues():
+
+def handle_issues(merged_issue_numbers=None):
     """Process open issues that don't already have a PR."""
+    if merged_issue_numbers is None:
+        merged_issue_numbers = set()
+
     issues_output = gh_api(
         "issues", jq="[.[] | select(.pull_request == null)] | .[].number"
     )
@@ -198,6 +210,11 @@ def handle_issues():
 
     for issue_number in issue_numbers:
         print(f"=== Checking issue #{issue_number} ===")
+
+        # Skip issues that were just closed by a merged PR
+        if int(issue_number) in merged_issue_numbers:
+            print(f"Issue #{issue_number}: just closed by a merged PR, skipping.")
+            continue
 
         issue_json = gh_api(f"issues/{issue_number}")
         issue_title = issue_json["title"]
@@ -254,8 +271,8 @@ def main():
     os.chdir("/workspace")
     run("git checkout main && git pull")
 
-    handle_prs()
-    handle_issues()
+    merged_issue_numbers = handle_prs()
+    handle_issues(merged_issue_numbers)
 
 
 if __name__ == "__main__":
