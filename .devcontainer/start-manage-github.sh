@@ -4,6 +4,15 @@
 
 set -euo pipefail
 
+# Load secrets (GH_TOKEN, etc.) from .env into this shell
+ENV_FILE="/workspace/.env"
+if [ -f "$ENV_FILE" ]; then
+    set -a
+    # shellcheck disable=SC1090
+    source <(grep -v '^\s*#' "$ENV_FILE" | grep -v '^\s*$')
+    set +a
+fi
+
 REPO_URL="https://github.com/loughmiller/connect-four.git"
 WORK_DIR="/tmp/manage-github-work"
 INTERVAL="${MANAGE_GITHUB_INTERVAL:-60}"
