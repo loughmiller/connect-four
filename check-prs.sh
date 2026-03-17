@@ -108,8 +108,9 @@ Here are the issue/conversation comments on this PR:
 ${issue_comments}
 
 For each piece of unaddressed feedback:
-- If you agree with the requested change, implement it, run tests (pytest --cov --cov-fail-under=100), commit, and push to the ${pr_branch} branch.
-- If you disagree, reply to the comment via the gh API explaining your reasoning and ask for clarification before making changes.
+- If the feedback requests a change and you agree, implement it, run tests (pytest --cov --cov-fail-under=100), commit, and push to the ${pr_branch} branch.
+- If the feedback requests a change and you disagree, reply to the comment via the gh API explaining your reasoning and ask for clarification before making changes.
+- If the feedback is a question (not a change request), reply to the comment via the gh API with a helpful answer.
 
 After addressing all feedback, run tests one final time to make sure everything passes.
 Never push directly to main. Only push to the ${pr_branch} branch."
