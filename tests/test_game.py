@@ -1,3 +1,5 @@
+import pytest
+
 from game import Game, ROWS, COLS
 
 
@@ -47,50 +49,35 @@ def test_make_move_switches_player():
 
 def test_make_move_wrong_player():
     game = Game()
-    try:
+    with pytest.raises(ValueError, match="Not your turn"):
         game.make_move(2, 0)
-        assert False, "Should have raised"
-    except ValueError as e:
-        assert "Not your turn" in str(e)
 
 
 def test_make_move_invalid_column_low():
     game = Game()
-    try:
+    with pytest.raises(ValueError, match="out of range"):
         game.make_move(1, -1)
-        assert False, "Should have raised"
-    except ValueError as e:
-        assert "out of range" in str(e)
 
 
 def test_make_move_invalid_column_high():
     game = Game()
-    try:
+    with pytest.raises(ValueError, match="out of range"):
         game.make_move(1, COLS)
-        assert False, "Should have raised"
-    except ValueError as e:
-        assert "out of range" in str(e)
 
 
 def test_make_move_full_column():
     game = Game()
     for r in range(ROWS):
         game.board[r][3] = 1
-    try:
+    with pytest.raises(ValueError, match="full"):
         game.make_move(1, 3)
-        assert False, "Should have raised"
-    except ValueError as e:
-        assert "full" in str(e)
 
 
 def test_make_move_game_already_over():
     game = Game()
     game.status = "player_1_wins"
-    try:
+    with pytest.raises(ValueError, match="already over"):
         game.make_move(1, 0)
-        assert False, "Should have raised"
-    except ValueError as e:
-        assert "already over" in str(e)
 
 
 def test_horizontal_win():
