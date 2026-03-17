@@ -135,8 +135,9 @@ def test_run_claude_calls_subprocess(mock_subproc):
 def test_handle_prs_no_prs(mock_gh):
     """handle_prs() does nothing when no open PRs exist."""
     mock_gh.return_value = ""
-    manage_github.handle_prs()
+    result = manage_github.handle_prs()
     mock_gh.assert_called_once()
+    assert result == set()
 
 
 @patch("tools.manage_github.run")
@@ -150,7 +151,7 @@ def test_handle_prs_approved_passing_merges(mock_gh, mock_run):
         "success",                                              # commits/abc123/status
         {},                                                     # pulls/42/merge
     ]
-    manage_github.handle_prs()
+    result = manage_github.handle_prs()
     # Verify merge was called
     merge_call = mock_gh.call_args_list[4]
     assert "merge" in merge_call[0][0]
@@ -158,6 +159,38 @@ def test_handle_prs_approved_passing_merges(mock_gh, mock_run):
     # Verify git cleanup
     mock_run.assert_any_call("git checkout main && git pull")
     mock_run.assert_any_call("git branch -d feat-x", check=False)
+    # Non-issue branch: no issue numbers tracked
+    assert result == set()
+
+
+@patch("tools.manage_github.run")
+@patch("tools.manage_github.gh_api")
+def test_handle_prs_merge_issue_branch_tracks_number(mock_gh, mock_run):
+    """Merging a PR from an issue-N branch returns the issue number."""
+    mock_gh.side_effect = [
+        "10",                                                   # pulls jq -> pr numbers
+        {"head": {"ref": "issue-7", "sha": "def456"}},         # pulls/10
+        [{"state": "APPROVED", "body": ""}],                    # reviews
+        "success",                                              # status
+        {},                                                     # merge
+    ]
+    result = manage_github.handle_prs()
+    assert result == {7}
+
+
+@patch("tools.manage_github.run")
+@patch("tools.manage_github.gh_api")
+def test_handle_prs_merge_issue_branch_non_numeric_ignored(mock_gh, mock_run):
+    """Merging a PR from issue-abc branch doesn't crash."""
+    mock_gh.side_effect = [
+        "10",
+        {"head": {"ref": "issue-abc", "sha": "def456"}},
+        [{"state": "APPROVED", "body": ""}],
+        "success",
+        {},
+    ]
+    result = manage_github.handle_prs()
+    assert result == set()
 
 
 @patch("tools.manage_github.run_claude")
@@ -246,6 +279,19 @@ def test_handle_issues_no_issues(mock_gh):
         "",     # pulls jq -> branches
     ]
     manage_github.handle_issues()
+
+
+@patch("tools.manage_github.run_claude")
+@patch("tools.manage_github.run")
+@patch("tools.manage_github.gh_api")
+def test_handle_issues_skips_recently_merged(mock_gh, mock_run, mock_claude):
+    """Issues whose PR was just merged are skipped."""
+    mock_gh.side_effect = [
+        "5",    # issues jq
+        "",     # pulls jq (no branches)
+    ]
+    manage_github.handle_issues(merged_issue_numbers={5})
+    mock_claude.assert_not_called()
 
 
 @patch("tools.manage_github.run")
@@ -341,11 +387,12 @@ def test_handle_issues_none_body_defaults_to_empty(mock_gh, mock_run, mock_claud
 @patch("tools.manage_github.verify_prerequisites")
 @patch("tools.manage_github.load_secrets")
 def test_main_orchestrates_correctly(mock_secrets, mock_verify, mock_chdir, mock_run, mock_prs, mock_issues):
-    """main() calls setup, checkout, and both handlers in order."""
+    """main() passes merged issue numbers from handle_prs to handle_issues."""
+    mock_prs.return_value = {7, 12}
     manage_github.main()
     mock_secrets.assert_called_once()
     mock_verify.assert_called_once()
     mock_chdir.assert_called_once_with("/workspace")
     mock_run.assert_called_once_with("git checkout main && git pull")
     mock_prs.assert_called_once()
-    mock_issues.assert_called_once()
+    mock_issues.assert_called_once_with({7, 12})
