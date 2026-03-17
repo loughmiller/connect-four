@@ -3,7 +3,7 @@ set -euo pipefail
 
 INTERVAL="${MANAGE_GITHUB_INTERVAL:-60}"
 REPO_URL="https://github.com/loughmiller/connect-four.git"
-REPO_DIR="/work/connect-four"
+REPO_DIR="$HOME/connect-four"
 
 export MANAGE_GITHUB_WORK_DIR="$REPO_DIR"
 
@@ -11,7 +11,7 @@ export MANAGE_GITHUB_WORK_DIR="$REPO_DIR"
 git config --global user.name "manage-github-bot"
 git config --global user.email "bot@connect-four.local"
 
-# Initial clone
+# Fresh clone on container start
 if [ ! -d "$REPO_DIR/.git" ]; then
     echo "Cloning repository..."
     git clone "$REPO_URL" "$REPO_DIR"
