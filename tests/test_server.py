@@ -191,6 +191,94 @@ def test_turn_blocks_until_opponent_moves(client, game_id):
     assert response.get_json()["current_player"] == 1
 
 
+def test_turn_multiple_players_polling_simultaneously(client, game_id):
+    """Two clients both waiting on /turn wake up when a move is made."""
+    client.post(f"/games/{game_id}/moves", json={"column": 0, "player": 1})
+
+    results = {}
+
+    def poll_turn(player, label):
+        c = app.test_client()
+        results[label] = c.get(f"/games/{game_id}/turn?player={player}")
+
+    t1 = threading.Thread(target=poll_turn, args=(1, "p1"))
+    t2 = threading.Thread(target=poll_turn, args=(1, "p2"))
+    t1.start()
+    t2.start()
+
+    time.sleep(0.025)
+    mover = app.test_client()
+    mover.post(f"/games/{game_id}/moves", json={"column": 1, "player": 2})
+
+    t1.join()
+    t2.join()
+
+    assert results["p1"].status_code == 200
+    assert results["p1"].get_json()["current_player"] == 1
+    assert results["p2"].status_code == 200
+    assert results["p2"].get_json()["current_player"] == 1
+
+
+def test_turn_polling_during_game_completion(client, game_id):
+    """A player long-polling receives game-over status when opponent wins."""
+    # Set up board so player 1 has 3 in a row at cols 0,1,2 (bottom row)
+    # Player 2 has pieces at cols 4,5 (bottom row)
+    moves = [(0, 1), (4, 2), (1, 1), (5, 2), (2, 1), (6, 2)]
+    for col, player in moves:
+        client.post(f"/games/{game_id}/moves", json={"column": col, "player": player})
+
+    # Player 2 is now polling for their turn
+    result = {}
+
+    def poll_turn():
+        c = app.test_client()
+        result["response"] = c.get(f"/games/{game_id}/turn?player=2")
+
+    t = threading.Thread(target=poll_turn)
+    t.start()
+
+    time.sleep(0.025)
+    # Player 1 makes the winning move (col 3 completes 4 in a row)
+    client.post(f"/games/{game_id}/moves", json={"column": 3, "player": 1})
+
+    t.join()
+
+    assert result["response"].status_code == 200
+    assert result["response"].get_json()["status"] == "player_1_wins"
+
+
+def test_turn_rapid_sequential_polls(client, game_id):
+    """A client polls, times out, and immediately re-polls without issues."""
+    client.post(f"/games/{game_id}/moves", json={"column": 0, "player": 1})
+
+    original = server.LONG_POLL_TIMEOUT
+    server.LONG_POLL_TIMEOUT = 0.025
+    try:
+        # First poll times out
+        response1 = client.get(f"/games/{game_id}/turn?player=1")
+        assert response1.status_code == 408
+
+        # Immediate re-poll also times out cleanly
+        response2 = client.get(f"/games/{game_id}/turn?player=1")
+        assert response2.status_code == 408
+
+        # Third poll is woken by a move
+        def player2_moves():
+            c = app.test_client()
+            c.post(f"/games/{game_id}/moves", json={"column": 1, "player": 2})
+
+        t = threading.Timer(0.025, player2_moves)
+        server.LONG_POLL_TIMEOUT = 1
+        t.start()
+        response3 = client.get(f"/games/{game_id}/turn?player=1")
+        t.join()
+
+        assert response3.status_code == 200
+        assert response3.get_json()["current_player"] == 1
+    finally:
+        server.LONG_POLL_TIMEOUT = original
+
+
 # --- POST /games/<game_id>/moves ---
 
 def test_make_move_returns_200(client, game_id):
