@@ -2,12 +2,6 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Session Startup
-
-Do these immediately at the start of every session, before any other work:
-
-1. **Start the PR watch loop** — run `/loop` with the prompt in the [PR Watching](#pr-watching) section below.
-
 ## Project
 
 Connect-Four game implemented in Python with a Flask REST API (`game.py`, `server.py`). The server allows API calls to create games and make moves, with long-polling for turn notifications. The long-term goal is a server that will allow automated/AI players to play each other.
@@ -76,33 +70,14 @@ pytest -v                               # verbose output
 
 ## PR Watching
 
-At the start of every session, schedule a recurring cron job (every 3 minutes) to watch for PR activity on this repo. Use the `/loop` skill with this prompt:
+PR checks run via `check-prs.sh` outside of live Claude sessions. The script:
+- Loads secrets and authenticates with `gh`
+- Fetches all open PRs on `loughmiller/connect-four`
+- Merges approved PRs with passing checks (squash merge, cleans up local branch)
+- Reports unaddressed review/issue comments
 
-```
-3m Check GitHub PRs for the loughmiller/connect-four repo and take action:
+Run manually or via cron:
 
-1. Load secrets and authenticate: `bash /workspace/.devcontainer/load-secrets.sh && source ~/.zshenv`
-
-2. Get all open PRs: `gh api repos/loughmiller/connect-four/pulls`
-
-3. For each open PR:
-   a. Check review state: `gh api repos/loughmiller/connect-four/pulls/{number}/reviews`
-   b. Check PR comments: `gh api repos/loughmiller/connect-four/pulls/{number}/comments`
-   c. Check issue comments: `gh api repos/loughmiller/connect-four/issues/{number}/comments`
-
-4. If a PR has been APPROVED and all checks pass, merge it and clean up the local branch:
-   ```
-   gh api repos/loughmiller/connect-four/pulls/{number}/merge -X PUT -f merge_method=squash
-   git checkout main && git pull
-   git branch -d {branch_name}
-   ```
-   (GitHub is configured to auto-delete the remote branch on merge.)
-
-5. For each unaddressed review comment:
-   - If you agree with the requested change, implement it, run tests, commit, and push.
-   - If you disagree, reply to the comment via `gh api repos/loughmiller/connect-four/pulls/{number}/comments/{comment_id}/replies -X POST -f body="..."` explaining your reasoning and ask for clarification before making changes.
-
-Always run `git checkout main && git pull` before checking out any feature branch. Always run tests before pushing. Never push directly to main.
-
-If there are no open PRs and nothing to act on, output nothing.
+```bash
+./check-prs.sh
 ```
