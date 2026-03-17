@@ -9,11 +9,15 @@ set -euo pipefail
 
 REPO="loughmiller/connect-four"
 
-# Load secrets if available
-if [ -f /workspace/.devcontainer/load-secrets.sh ]; then
-    bash /workspace/.devcontainer/load-secrets.sh
-    # shellcheck disable=SC1090
-    source ~/.zshenv 2>/dev/null || true
+# Load secrets directly from secrets.json
+SECRETS_FILE="/workspace/secrets.json"
+if [ -f "$SECRETS_FILE" ]; then
+    eval "$(python3 -c "
+import json
+with open('$SECRETS_FILE') as f:
+    for k, v in json.load(f).items():
+        print(f'export {k}=\"{v}\"')
+")"
 fi
 
 # Verify gh can reach the API
