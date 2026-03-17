@@ -148,6 +148,46 @@ def test_draw():
     assert game.status == "draw"
 
 
+def test_diagonal_win_bottom_left_corner():
+    game = Game()
+    # / diagonal starting at bottom-left corner: (5,0),(4,1),(3,2),(2,3)
+    game.board[5][0] = 1
+    game.board[4][1] = 1
+    game.board[3][2] = 1
+    # fill col 3 so piece lands at row 2
+    game.board[5][3] = 2
+    game.board[4][3] = 2
+    game.board[3][3] = 2
+    game.make_move(1, 3)
+    assert game.status == "player_1_wins"
+
+
+def test_diagonal_win_top_right_corner():
+    game = Game()
+    # / diagonal ending at top-right corner: (3,3),(2,4),(1,5),(0,6)
+    game.board[3][3] = 1
+    game.board[2][4] = 1
+    game.board[1][5] = 1
+    # col 6 is empty so piece lands at row 5; fill rows 5-1 so it lands at 0
+    for r in range(5, 0, -1):
+        game.board[r][6] = 2
+    game.make_move(1, 6)
+    assert game.status == "player_1_wins"
+
+
+def test_diagonal_win_top_row_boundary():
+    game = Game()
+    # \ diagonal starting at top row: (0,0),(1,1),(2,2),(3,3)
+    game.board[0][0] = 1
+    game.board[1][1] = 1
+    game.board[2][2] = 1
+    # fill col 3 so piece lands at row 3
+    for r in range(5, 3, -1):
+        game.board[r][3] = 2
+    game.make_move(1, 3)
+    assert game.status == "player_1_wins"
+
+
 def test_no_win_continues():
     game = Game()
     game.make_move(1, 0)
