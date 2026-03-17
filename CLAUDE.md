@@ -76,8 +76,20 @@ pytest -v                               # verbose output
 - For open issues without an existing PR, creates a feature branch (`issue-<number>`), invokes Claude Code to implement the fix, and opens a PR
 - Skips issues labeled `wontfix`, `question`, `duplicate`, or `invalid`
 
-Run manually or via cron:
+Run manually, or as a container on a recurring interval:
 
 ```bash
-python3 tools/manage_github.py
+python3 tools/manage_github.py          # manual
+docker compose up manage-github         # containerized, runs every 5 min
 ```
+
+## Secrets
+
+Secrets are stored in a `.env` file in the project root (git-ignored). Copy `.env.example` to get started:
+
+```bash
+cp .env.example .env
+# Edit .env with your actual tokens
+```
+
+The devcontainer loads `.env` on startup via `load-secrets.sh`. The `manage-github` container reads `.env` via `docker compose`.

@@ -74,11 +74,22 @@ def test_gh_api_strips_trailing_slash(mock_run):
 
 # --- load_secrets() ---
 
-@patch("tools.manage_github.os.path.isfile", return_value=True)
+@patch("tools.manage_github.os.path.isfile", side_effect=lambda f: f == manage_github.ENV_FILE)
+@patch("builtins.open", mock_open(read_data="GH_TOKEN=abc123\n# comment\n\nANTHROPIC_API_KEY=sk-test\n"))
+@patch.dict("os.environ", {}, clear=True)
+def test_load_secrets_from_env_file(mock_isfile):
+    """load_secrets() reads .env file and sets env vars."""
+    manage_github.load_secrets()
+    import os
+    assert os.environ["GH_TOKEN"] == "abc123"
+    assert os.environ["ANTHROPIC_API_KEY"] == "sk-test"
+
+
+@patch("tools.manage_github.os.path.isfile", side_effect=lambda f: f == manage_github.SECRETS_FILE)
 @patch("builtins.open", mock_open(read_data='{"GH_TOKEN": "abc123"}'))
 @patch.dict("os.environ", {}, clear=True)
-def test_load_secrets_sets_env_vars(mock_isfile):
-    """load_secrets() reads JSON file and sets env vars."""
+def test_load_secrets_from_secrets_json(mock_isfile):
+    """load_secrets() falls back to secrets.json when .env is missing."""
     manage_github.load_secrets()
     import os
     assert os.environ["GH_TOKEN"] == "abc123"
@@ -86,9 +97,8 @@ def test_load_secrets_sets_env_vars(mock_isfile):
 
 @patch("tools.manage_github.os.path.isfile", return_value=False)
 def test_load_secrets_no_file(mock_isfile):
-    """load_secrets() is a no-op when secrets file doesn't exist."""
+    """load_secrets() is a no-op when no secrets file exists."""
     manage_github.load_secrets()
-    mock_isfile.assert_called_once()
 
 
 # --- verify_prerequisites() ---
@@ -392,7 +402,7 @@ def test_main_orchestrates_correctly(mock_secrets, mock_verify, mock_chdir, mock
     manage_github.main()
     mock_secrets.assert_called_once()
     mock_verify.assert_called_once()
-    mock_chdir.assert_called_once_with("/workspace")
+    mock_chdir.assert_called_once_with(manage_github.WORK_DIR)
     mock_run.assert_any_call("git checkout main && git pull")
     mock_run.assert_any_call("git remote prune origin", check=False)
     mock_prs.assert_called_once()
