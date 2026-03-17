@@ -88,7 +88,7 @@ RUN sh -c "$(wget -O- https://github.com/deluan/zsh-in-docker/releases/download/
   -x
 
 # Install Python testing tools
-RUN pip install --break-system-packages flask pytest pytest-cov
+RUN pip install --break-system-packages --root-user-action=ignore flask pytest pytest-cov
 
 # Install Claude
 RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}
