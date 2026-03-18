@@ -2,7 +2,8 @@ import threading
 import time
 import pytest
 import src.server as server
-from src.server import app, games, cleanup_games, start_cleanup_thread, API_SPEC
+from src.api_spec import API_SPEC
+from src.server import app, games, cleanup_games, start_cleanup_thread
 
 
 @pytest.fixture(autouse=True)
