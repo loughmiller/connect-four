@@ -41,13 +41,17 @@ def start_cleanup_thread():
 
 @app.route("/games", methods=["POST"])
 def create_game():
-    game = Game()
+    data = request.get_json(force=True, silent=True) or {}
+    player1_name = data.get("player1_name", "Player 1")
+    player2_name = data.get("player2_name", "Player 2")
+    game = Game(player1_name=player1_name, player2_name=player2_name)
     games[game.id] = game
     return jsonify({
         "game_id": game.id,
         "board": game.board,
         "current_player": game.current_player,
         "status": game.status,
+        "players": game.players,
     }), 201
 
 
@@ -62,6 +66,7 @@ def list_games():
             "game_id": game.id,
             "status": game.status,
             "current_player": game.current_player,
+            "players": game.players,
         })
     return jsonify(result), 200
 
@@ -72,6 +77,7 @@ def _game_response(game):
         "board": game.board,
         "current_player": game.current_player,
         "status": game.status,
+        "players": game.players,
     })
 
 

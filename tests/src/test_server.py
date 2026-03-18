@@ -73,6 +73,7 @@ def test_create_game_response_fields(client):
     assert "board" in data
     assert "current_player" in data
     assert "status" in data
+    assert "players" in data
 
 
 def test_create_game_board_dimensions(client):
@@ -86,6 +87,20 @@ def test_create_game_initial_state(client):
     assert data["current_player"] == 1
     assert data["status"] == "in_progress"
     assert all(cell == 0 for row in data["board"] for cell in row)
+    assert data["players"] == {"1": "Player 1", "2": "Player 2"}
+
+
+def test_create_game_with_custom_names(client):
+    data = client.post("/games", json={
+        "player1_name": "Alice",
+        "player2_name": "Bob",
+    }).get_json()
+    assert data["players"] == {"1": "Alice", "2": "Bob"}
+
+
+def test_create_game_with_partial_names(client):
+    data = client.post("/games", json={"player1_name": "Alice"}).get_json()
+    assert data["players"] == {"1": "Alice", "2": "Player 2"}
 
 
 def test_create_game_stored(client):
@@ -121,6 +136,7 @@ def test_list_games_response_fields(client):
     assert "game_id" in data[0]
     assert "status" in data[0]
     assert "current_player" in data[0]
+    assert "players" in data[0]
     assert "board" not in data[0]
 
 
@@ -151,6 +167,7 @@ def test_get_game_response_fields(client, game_id):
     assert "board" in data
     assert "current_player" in data
     assert "status" in data
+    assert "players" in data
 
 
 def test_get_game_reflects_current_state(client, game_id):
@@ -330,6 +347,7 @@ def test_make_move_response_fields(client, game_id):
     assert "board" in data
     assert "current_player" in data
     assert "status" in data
+    assert "players" in data
 
 
 def test_make_move_updates_board(client, game_id):
