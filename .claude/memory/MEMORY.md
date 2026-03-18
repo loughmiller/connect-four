@@ -5,3 +5,4 @@
 - [feedback_no_direct_main_commits.md](feedback_no_direct_main_commits.md) — Never commit directly to main; always use a feature branch
 - [feedback_branch_from_main.md](feedback_branch_from_main.md) — Always create new feature branches from main, not from the current branch
 - [feedback_update_all_docs.md](feedback_update_all_docs.md) — When changing the API, also update README and src/api_spec.py
+- [feedback_pr_for_repo_memory.md](feedback_pr_for_repo_memory.md) — Always commit and PR repo memory changes like any other code
