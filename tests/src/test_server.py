@@ -25,6 +25,12 @@ def game_id(client):
     return client.post("/games").get_json()["game_id"]
 
 
+@pytest.fixture
+def started_game_id(client, game_id):
+    client.post(f"/games/{game_id}/join", json={"player_name": "Player 2"})
+    return game_id
+
+
 # --- GET /api-docs ---
 
 def test_api_docs_returns_200(client):
@@ -42,6 +48,7 @@ def test_api_docs_contains_all_paths(client):
     data = client.get("/api-docs").get_json()
     assert "/games" in data["paths"]
     assert "/games/{game_id}" in data["paths"]
+    assert "/games/{game_id}/join" in data["paths"]
     assert "/games/{game_id}/turn" in data["paths"]
     assert "/games/{game_id}/moves" in data["paths"]
 
@@ -86,22 +93,16 @@ def test_create_game_board_dimensions(client):
 def test_create_game_initial_state(client):
     data = client.post("/games").get_json()
     assert data["current_player"] == 1
-    assert data["status"] == "in_progress"
+    assert data["status"] == "waiting_for_opponent"
     assert all(cell == 0 for row in data["board"] for cell in row)
-    assert data["players"] == {"1": "Player 1", "2": "Player 2"}
+    assert data["players"] == {"1": "Player 1", "2": None}
 
 
-def test_create_game_with_custom_names(client):
+def test_create_game_with_custom_name(client):
     data = client.post("/games", json={
         "player1_name": "Alice",
-        "player2_name": "Bob",
     }).get_json()
-    assert data["players"] == {"1": "Alice", "2": "Bob"}
-
-
-def test_create_game_with_partial_names(client):
-    data = client.post("/games", json={"player1_name": "Alice"}).get_json()
-    assert data["players"] == {"1": "Alice", "2": "Player 2"}
+    assert data["players"] == {"1": "Alice", "2": None}
 
 
 def test_create_game_stored(client):
@@ -145,9 +146,9 @@ def test_list_games_filter_by_status(client):
     id1 = client.post("/games").get_json()["game_id"]
     client.post("/games")
     games[id1].status = "player_1_wins"
-    data = client.get("/games?status=in_progress").get_json()
+    data = client.get("/games?status=waiting_for_opponent").get_json()
     assert len(data) == 1
-    assert data[0]["status"] == "in_progress"
+    assert data[0]["status"] == "waiting_for_opponent"
 
 
 def test_list_games_filter_no_match(client):
@@ -171,9 +172,9 @@ def test_get_game_response_fields(client, game_id):
     assert "players" in data
 
 
-def test_get_game_reflects_current_state(client, game_id):
-    client.post(f"/games/{game_id}/moves", json={"column": 0, "player": 1})
-    data = client.get(f"/games/{game_id}").get_json()
+def test_get_game_reflects_current_state(client, started_game_id):
+    client.post(f"/games/{started_game_id}/moves", json={"column": 0, "player": 1})
+    data = client.get(f"/games/{started_game_id}").get_json()
     assert data["board"][5][0] == 1
     assert data["current_player"] == 2
 
@@ -204,8 +205,8 @@ def test_turn_invalid_player(client, game_id):
     assert "error" in response.get_json()
 
 
-def test_turn_returns_immediately_when_already_your_turn(client, game_id):
-    response = client.get(f"/games/{game_id}/turn?player=1")
+def test_turn_returns_immediately_when_already_your_turn(client, started_game_id):
+    response = client.get(f"/games/{started_game_id}/turn?player=1")
     assert response.status_code == 200
     data = response.get_json()
     assert data["current_player"] == 1
@@ -218,44 +219,44 @@ def test_turn_returns_immediately_when_game_over(client, game_id):
     assert response.get_json()["status"] == "player_1_wins"
 
 
-def test_turn_timeout(client, game_id):
+def test_turn_timeout(client, started_game_id):
     original = server.LONG_POLL_TIMEOUT
     server.LONG_POLL_TIMEOUT = 0.025
     try:
-        client.post(f"/games/{game_id}/moves", json={"column": 0, "player": 1})
-        response = client.get(f"/games/{game_id}/turn?player=1")
+        client.post(f"/games/{started_game_id}/moves", json={"column": 0, "player": 1})
+        response = client.get(f"/games/{started_game_id}/turn?player=1")
         assert response.status_code == 408
         assert "error" in response.get_json()
     finally:
         server.LONG_POLL_TIMEOUT = original
 
 
-def test_turn_blocks_until_opponent_moves(client, game_id):
-    client.post(f"/games/{game_id}/moves", json={"column": 0, "player": 1})
+def test_turn_blocks_until_opponent_moves(client, started_game_id):
+    client.post(f"/games/{started_game_id}/moves", json={"column": 0, "player": 1})
 
     client2 = app.test_client()
 
     def player2_moves():
-        client2.post(f"/games/{game_id}/moves", json={"column": 1, "player": 2})
+        client2.post(f"/games/{started_game_id}/moves", json={"column": 1, "player": 2})
 
     t = threading.Timer(0.025, player2_moves)
     t.start()
-    response = client.get(f"/games/{game_id}/turn?player=1")
+    response = client.get(f"/games/{started_game_id}/turn?player=1")
     t.join()
 
     assert response.status_code == 200
     assert response.get_json()["current_player"] == 1
 
 
-def test_turn_multiple_players_polling_simultaneously(client, game_id):
+def test_turn_multiple_players_polling_simultaneously(client, started_game_id):
     """Two clients both waiting on /turn wake up when a move is made."""
-    client.post(f"/games/{game_id}/moves", json={"column": 0, "player": 1})
+    client.post(f"/games/{started_game_id}/moves", json={"column": 0, "player": 1})
 
     results = {}
 
     def poll_turn(player, label):
         c = app.test_client()
-        results[label] = c.get(f"/games/{game_id}/turn?player={player}")
+        results[label] = c.get(f"/games/{started_game_id}/turn?player={player}")
 
     t1 = threading.Thread(target=poll_turn, args=(1, "p1"))
     t2 = threading.Thread(target=poll_turn, args=(1, "p2"))
@@ -264,7 +265,7 @@ def test_turn_multiple_players_polling_simultaneously(client, game_id):
 
     time.sleep(0.025)
     mover = app.test_client()
-    mover.post(f"/games/{game_id}/moves", json={"column": 1, "player": 2})
+    mover.post(f"/games/{started_game_id}/moves", json={"column": 1, "player": 2})
 
     t1.join()
     t2.join()
@@ -275,27 +276,27 @@ def test_turn_multiple_players_polling_simultaneously(client, game_id):
     assert results["p2"].get_json()["current_player"] == 1
 
 
-def test_turn_polling_during_game_completion(client, game_id):
+def test_turn_polling_during_game_completion(client, started_game_id):
     """A player long-polling receives game-over status when opponent wins."""
     # Set up board so player 1 has 3 in a row at cols 0,1,2 (bottom row)
     # Player 2 has pieces at cols 4,5 (bottom row)
     moves = [(0, 1), (4, 2), (1, 1), (5, 2), (2, 1), (6, 2)]
     for col, player in moves:
-        client.post(f"/games/{game_id}/moves", json={"column": col, "player": player})
+        client.post(f"/games/{started_game_id}/moves", json={"column": col, "player": player})
 
     # Player 2 is now polling for their turn
     result = {}
 
     def poll_turn():
         c = app.test_client()
-        result["response"] = c.get(f"/games/{game_id}/turn?player=2")
+        result["response"] = c.get(f"/games/{started_game_id}/turn?player=2")
 
     t = threading.Thread(target=poll_turn)
     t.start()
 
     time.sleep(0.025)
     # Player 1 makes the winning move (col 3 completes 4 in a row)
-    client.post(f"/games/{game_id}/moves", json={"column": 3, "player": 1})
+    client.post(f"/games/{started_game_id}/moves", json={"column": 3, "player": 1})
 
     t.join()
 
@@ -303,30 +304,30 @@ def test_turn_polling_during_game_completion(client, game_id):
     assert result["response"].get_json()["status"] == "player_1_wins"
 
 
-def test_turn_rapid_sequential_polls(client, game_id):
+def test_turn_rapid_sequential_polls(client, started_game_id):
     """A client polls, times out, and immediately re-polls without issues."""
-    client.post(f"/games/{game_id}/moves", json={"column": 0, "player": 1})
+    client.post(f"/games/{started_game_id}/moves", json={"column": 0, "player": 1})
 
     original = server.LONG_POLL_TIMEOUT
     server.LONG_POLL_TIMEOUT = 0.025
     try:
         # First poll times out
-        response1 = client.get(f"/games/{game_id}/turn?player=1")
+        response1 = client.get(f"/games/{started_game_id}/turn?player=1")
         assert response1.status_code == 408
 
         # Immediate re-poll also times out cleanly
-        response2 = client.get(f"/games/{game_id}/turn?player=1")
+        response2 = client.get(f"/games/{started_game_id}/turn?player=1")
         assert response2.status_code == 408
 
         # Third poll is woken by a move
         def player2_moves():
             c = app.test_client()
-            c.post(f"/games/{game_id}/moves", json={"column": 1, "player": 2})
+            c.post(f"/games/{started_game_id}/moves", json={"column": 1, "player": 2})
 
         t = threading.Timer(0.025, player2_moves)
         server.LONG_POLL_TIMEOUT = 1
         t.start()
-        response3 = client.get(f"/games/{game_id}/turn?player=1")
+        response3 = client.get(f"/games/{started_game_id}/turn?player=1")
         t.join()
 
         assert response3.status_code == 200
@@ -337,13 +338,13 @@ def test_turn_rapid_sequential_polls(client, game_id):
 
 # --- POST /games/<game_id>/moves ---
 
-def test_make_move_returns_200(client, game_id):
-    response = client.post(f"/games/{game_id}/moves", json={"column": 0, "player": 1})
+def test_make_move_returns_200(client, started_game_id):
+    response = client.post(f"/games/{started_game_id}/moves", json={"column": 0, "player": 1})
     assert response.status_code == 200
 
 
-def test_make_move_response_fields(client, game_id):
-    data = client.post(f"/games/{game_id}/moves", json={"column": 0, "player": 1}).get_json()
+def test_make_move_response_fields(client, started_game_id):
+    data = client.post(f"/games/{started_game_id}/moves", json={"column": 0, "player": 1}).get_json()
     assert "game_id" in data
     assert "board" in data
     assert "current_player" in data
@@ -351,13 +352,13 @@ def test_make_move_response_fields(client, game_id):
     assert "players" in data
 
 
-def test_make_move_updates_board(client, game_id):
-    data = client.post(f"/games/{game_id}/moves", json={"column": 0, "player": 1}).get_json()
+def test_make_move_updates_board(client, started_game_id):
+    data = client.post(f"/games/{started_game_id}/moves", json={"column": 0, "player": 1}).get_json()
     assert data["board"][5][0] == 1
 
 
-def test_make_move_switches_player(client, game_id):
-    data = client.post(f"/games/{game_id}/moves", json={"column": 0, "player": 1}).get_json()
+def test_make_move_switches_player(client, started_game_id):
+    data = client.post(f"/games/{started_game_id}/moves", json={"column": 0, "player": 1}).get_json()
     assert data["current_player"] == 2
 
 
@@ -403,14 +404,14 @@ def test_make_move_invalid_player(client, game_id):
     assert "error" in response.get_json()
 
 
-def test_make_move_wrong_turn(client, game_id):
-    response = client.post(f"/games/{game_id}/moves", json={"column": 0, "player": 2})
+def test_make_move_wrong_turn(client, started_game_id):
+    response = client.post(f"/games/{started_game_id}/moves", json={"column": 0, "player": 2})
     assert response.status_code == 400
     assert "error" in response.get_json()
 
 
-def test_make_move_column_out_of_range(client, game_id):
-    response = client.post(f"/games/{game_id}/moves", json={"column": 99, "player": 1})
+def test_make_move_column_out_of_range(client, started_game_id):
+    response = client.post(f"/games/{started_game_id}/moves", json={"column": 99, "player": 1})
     assert response.status_code == 400
     assert "error" in response.get_json()
 
@@ -422,12 +423,12 @@ def test_make_move_game_over(client, game_id):
     assert "error" in response.get_json()
 
 
-def test_full_game_draw_via_api(client, game_id):
+def test_full_game_draw_via_api(client, started_game_id):
     moves = [0, 2, 1, 3, 4, 6, 5] * 6
     for i, col in enumerate(moves):
         player = 1 if i % 2 == 0 else 2
         response = client.post(
-            f"/games/{game_id}/moves", json={"column": col, "player": player}
+            f"/games/{started_game_id}/moves", json={"column": col, "player": player}
         )
         assert response.status_code == 200
         data = response.get_json()
@@ -437,13 +438,13 @@ def test_full_game_draw_via_api(client, game_id):
             assert data["status"] == "draw"
 
 
-def test_make_move_win_updates_status(client, game_id):
+def test_make_move_win_updates_status(client, started_game_id):
     # Player 1 wins horizontally: cols 0,1,2,3 with player 2 at cols 4,5,6
     moves = [(0, 1), (4, 2), (1, 1), (5, 2), (2, 1), (6, 2), (3, 1)]
     for col, player in moves[:-1]:
-        client.post(f"/games/{game_id}/moves", json={"column": col, "player": player})
+        client.post(f"/games/{started_game_id}/moves", json={"column": col, "player": player})
     col, player = moves[-1]
-    data = client.post(f"/games/{game_id}/moves", json={"column": col, "player": player}).get_json()
+    data = client.post(f"/games/{started_game_id}/moves", json={"column": col, "player": player}).get_json()
     assert data["status"] == "player_1_wins"
 
 
@@ -493,3 +494,71 @@ def test_cleanup_thread_runs_periodically(client):
         server.CLEANUP_INTERVAL = original
 
     assert gid not in games
+
+
+# --- POST /games/<game_id>/join ---
+
+def test_join_game_returns_200(client, game_id):
+    response = client.post(f"/games/{game_id}/join", json={"player_name": "Bob"})
+    assert response.status_code == 200
+
+
+def test_join_game_sets_player_name(client, game_id):
+    data = client.post(f"/games/{game_id}/join", json={"player_name": "Bob"}).get_json()
+    assert data["players"]["2"] == "Bob"
+
+
+def test_join_game_transitions_status(client, game_id):
+    data = client.post(f"/games/{game_id}/join", json={"player_name": "Bob"}).get_json()
+    assert data["status"] == "in_progress"
+
+
+def test_join_game_not_found(client):
+    response = client.post("/games/nonexistent/join", json={"player_name": "Bob"})
+    assert response.status_code == 404
+    assert "error" in response.get_json()
+
+
+def test_join_game_missing_player_name(client, game_id):
+    response = client.post(f"/games/{game_id}/join", json={})
+    assert response.status_code == 400
+    assert "error" in response.get_json()
+
+
+def test_join_game_missing_body(client, game_id):
+    response = client.post(f"/games/{game_id}/join")
+    assert response.status_code == 400
+    assert "error" in response.get_json()
+
+
+def test_join_game_already_started(client, started_game_id):
+    response = client.post(f"/games/{started_game_id}/join", json={"player_name": "Charlie"})
+    assert response.status_code == 400
+    assert "error" in response.get_json()
+
+
+def test_join_game_already_over(client, game_id):
+    games[game_id].status = "player_1_wins"
+    response = client.post(f"/games/{game_id}/join", json={"player_name": "Bob"})
+    assert response.status_code == 400
+    assert "error" in response.get_json()
+
+
+def test_turn_blocks_while_waiting_then_wakes_on_join(client, game_id):
+    """Player 1 polls /turn while waiting for opponent, wakes when someone joins."""
+    result = {}
+
+    def poll_turn():
+        c = app.test_client()
+        result["response"] = c.get(f"/games/{game_id}/turn?player=1")
+
+    t = threading.Thread(target=poll_turn)
+    t.start()
+
+    time.sleep(0.025)
+    client.post(f"/games/{game_id}/join", json={"player_name": "Bob"})
+
+    t.join()
+
+    assert result["response"].status_code == 200
+    assert result["response"].get_json()["status"] == "in_progress"

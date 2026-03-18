@@ -25,11 +25,6 @@ API_SPEC = {
                                         "default": "Player 1",
                                         "description": "Name for player 1",
                                     },
-                                    "player2_name": {
-                                        "type": "string",
-                                        "default": "Player 2",
-                                        "description": "Name for player 2",
-                                    },
                                 },
                             }
                         }
@@ -57,6 +52,7 @@ API_SPEC = {
                         "schema": {
                             "type": "string",
                             "enum": [
+                                "waiting_for_opponent",
                                 "in_progress",
                                 "player_1_wins",
                                 "player_2_wins",
@@ -101,6 +97,63 @@ API_SPEC = {
                         "content": {
                             "application/json": {
                                 "schema": {"$ref": "#/components/schemas/GameState"}
+                            }
+                        },
+                    },
+                    "404": {
+                        "description": "Game not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {"$ref": "#/components/schemas/Error"}
+                            }
+                        },
+                    },
+                },
+            }
+        },
+        "/games/{game_id}/join": {
+            "post": {
+                "summary": "Join a game",
+                "operationId": "joinGame",
+                "parameters": [
+                    {
+                        "name": "game_id",
+                        "in": "path",
+                        "required": True,
+                        "schema": {"type": "string"},
+                    }
+                ],
+                "requestBody": {
+                    "required": True,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "required": ["player_name"],
+                                "properties": {
+                                    "player_name": {
+                                        "type": "string",
+                                        "description": "Name for player 2",
+                                    },
+                                },
+                            }
+                        }
+                    },
+                },
+                "responses": {
+                    "200": {
+                        "description": "Joined game",
+                        "content": {
+                            "application/json": {
+                                "schema": {"$ref": "#/components/schemas/GameState"}
+                            }
+                        },
+                    },
+                    "400": {
+                        "description": "Invalid request or game not waiting for opponent",
+                        "content": {
+                            "application/json": {
+                                "schema": {"$ref": "#/components/schemas/Error"}
                             }
                         },
                     },
@@ -284,6 +337,7 @@ API_SPEC = {
                     },
                     "2": {
                         "type": "string",
+                        "nullable": True,
                         "description": "Player 2 name",
                     },
                 },

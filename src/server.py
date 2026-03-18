@@ -43,8 +43,7 @@ def start_cleanup_thread():
 def create_game():
     data = request.get_json(force=True, silent=True) or {}
     player1_name = data.get("player1_name", "Player 1")
-    player2_name = data.get("player2_name", "Player 2")
-    game = Game(player1_name=player1_name, player2_name=player2_name)
+    game = Game(player1_name=player1_name)
     games[game.id] = game
     return jsonify({
         "game_id": game.id,
@@ -53,6 +52,23 @@ def create_game():
         "status": game.status,
         "players": game.players,
     }), 201
+
+
+@app.route("/games/<game_id>/join", methods=["POST"])
+def join_game(game_id):
+    if game_id not in games:
+        return jsonify({"error": "Game not found"}), 404
+
+    data = request.get_json(force=True, silent=True)
+    if not data or "player_name" not in data:
+        return jsonify({"error": "player_name is required"}), 400
+
+    try:
+        games[game_id].join(data["player_name"])
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+
+    return _game_response(games[game_id]), 200
 
 
 @app.route("/games", methods=["GET"])
@@ -105,7 +121,8 @@ def wait_for_turn(game_id):
 
     with game._condition:
         notified = game._condition.wait_for(
-            lambda: game.current_player == player or game.status != "in_progress",
+            lambda: (game.status == "in_progress" and game.current_player == player) or
+                    game.status not in ("in_progress", "waiting_for_opponent"),
             timeout=LONG_POLL_TIMEOUT,
         )
 
