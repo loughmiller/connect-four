@@ -7,19 +7,27 @@ COLS = 7
 
 
 class Game:
-    def __init__(self, player1_name="Player 1", player2_name="Player 2"):
+    def __init__(self, player1_name="Player 1"):
         self.id = str(uuid.uuid4())
         self.board = [[0] * COLS for _ in range(ROWS)]
         self.current_player = 1
-        self.status = "in_progress"
+        self.status = "waiting_for_opponent"
         self.completed_at = None
-        self.players = {1: player1_name, 2: player2_name}
+        self.players = {1: player1_name, 2: None}
         self._condition = threading.Condition()
+
+    def join(self, player2_name):
+        with self._condition:
+            if self.status != "waiting_for_opponent":
+                raise ValueError("Game is not waiting for an opponent")
+            self.players[2] = player2_name
+            self.status = "in_progress"
+            self._condition.notify_all()
 
     def make_move(self, player, column):
         with self._condition:
             if self.status != "in_progress":
-                raise ValueError("Game is already over")
+                raise ValueError("Game is not in progress")
             if player != self.current_player:
                 raise ValueError("Not your turn")
             if not (0 <= column < COLS):

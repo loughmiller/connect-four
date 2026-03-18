@@ -16,7 +16,10 @@ The API is available at `http://localhost:8080`.
 
 ```bash
 # Create a game
-curl -X POST http://localhost:8080/games
+curl -X POST http://localhost:8080/games -d '{"player1_name": "Alice"}'
+
+# Join the game as player 2
+curl -X POST http://localhost:8080/games/<game_id>/join -d '{"player_name": "Bob"}'
 
 # Join as player 1 (random bot)
 python3 examples/random_player.py <game_id> 1
@@ -29,11 +32,15 @@ python3 examples/manual_player.py <game_id> 2
 
 ### `POST /games`
 
-Create a new game. Returns the game ID, board, and initial state.
+Create a new game. Accepts optional `player1_name` in the request body. Returns the game state with status `waiting_for_opponent`.
+
+### `POST /games/<game_id>/join`
+
+Join an existing game as player 2. Body: `{"player_name": "..."}`. Transitions the game to `in_progress`.
 
 ### `GET /games`
 
-List all games. Optional `?status=` filter (e.g. `in_progress`, `draw`, `player_1_wins`).
+List all games. Optional `?status=` filter (e.g. `waiting_for_opponent`, `in_progress`, `draw`, `player_1_wins`).
 
 ### `GET /games/<game_id>`
 
