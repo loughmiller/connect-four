@@ -2,6 +2,7 @@ import threading
 import time
 import pytest
 import src.server as server
+from src.api_spec import API_SPEC
 from src.server import app, games, cleanup_games, start_cleanup_thread
 
 
@@ -23,6 +24,43 @@ def client():
 def game_id(client):
     return client.post("/games").get_json()["game_id"]
 
+
+# --- GET /api-docs ---
+
+def test_api_docs_returns_200(client):
+    response = client.get("/api-docs")
+    assert response.status_code == 200
+
+
+def test_api_docs_returns_openapi_spec(client):
+    data = client.get("/api-docs").get_json()
+    assert data["openapi"] == "3.0.3"
+    assert data["info"]["title"] == "Connect Four API"
+
+
+def test_api_docs_contains_all_paths(client):
+    data = client.get("/api-docs").get_json()
+    assert "/games" in data["paths"]
+    assert "/games/{game_id}" in data["paths"]
+    assert "/games/{game_id}/turn" in data["paths"]
+    assert "/games/{game_id}/moves" in data["paths"]
+
+
+def test_api_docs_contains_schemas(client):
+    data = client.get("/api-docs").get_json()
+    schemas = data["components"]["schemas"]
+    assert "GameState" in schemas
+    assert "GameSummary" in schemas
+    assert "MoveRequest" in schemas
+    assert "Error" in schemas
+
+
+def test_api_docs_matches_spec_constant(client):
+    data = client.get("/api-docs").get_json()
+    assert data == API_SPEC
+
+
+# --- POST /games ---
 
 def test_create_game_returns_201(client):
     response = client.post("/games")

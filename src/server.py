@@ -2,6 +2,7 @@ import threading
 import time
 
 from flask import Flask, jsonify, request
+from src.api_spec import API_SPEC
 from src.game import Game
 
 app = Flask(__name__)
@@ -10,6 +11,10 @@ games = {}
 LONG_POLL_TIMEOUT = 30
 GAME_TTL = 300  # seconds to keep completed games before cleanup
 CLEANUP_INTERVAL = 60  # seconds between cleanup runs
+
+@app.route("/api-docs", methods=["GET"])
+def api_docs():
+    return jsonify(API_SPEC), 200
 
 
 def cleanup_games():
