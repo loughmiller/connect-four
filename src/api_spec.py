@@ -13,6 +13,28 @@ API_SPEC = {
             "post": {
                 "summary": "Create a new game",
                 "operationId": "createGame",
+                "requestBody": {
+                    "required": False,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "properties": {
+                                    "player1_name": {
+                                        "type": "string",
+                                        "default": "Player 1",
+                                        "description": "Name for player 1",
+                                    },
+                                    "player2_name": {
+                                        "type": "string",
+                                        "default": "Player 2",
+                                        "description": "Name for player 2",
+                                    },
+                                },
+                            }
+                        }
+                    },
+                },
                 "responses": {
                     "201": {
                         "description": "Game created",
@@ -232,6 +254,7 @@ API_SPEC = {
                             "draw",
                         ],
                     },
+                    "players": {"$ref": "#/components/schemas/Players"},
                 },
             },
             "GameSummary": {
@@ -248,6 +271,21 @@ API_SPEC = {
                         ],
                     },
                     "current_player": {"type": "integer", "enum": [1, 2]},
+                    "players": {"$ref": "#/components/schemas/Players"},
+                },
+            },
+            "Players": {
+                "type": "object",
+                "description": "Player names keyed by player number",
+                "properties": {
+                    "1": {
+                        "type": "string",
+                        "description": "Player 1 name",
+                    },
+                    "2": {
+                        "type": "string",
+                        "description": "Player 2 name",
+                    },
                 },
             },
             "MoveRequest": {

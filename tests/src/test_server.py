@@ -51,6 +51,7 @@ def test_api_docs_contains_schemas(client):
     schemas = data["components"]["schemas"]
     assert "GameState" in schemas
     assert "GameSummary" in schemas
+    assert "Players" in schemas
     assert "MoveRequest" in schemas
     assert "Error" in schemas
 
