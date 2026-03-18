@@ -256,6 +256,16 @@ def test_full_game_draw():
     assert all(game.board[0][c] != 0 for c in range(COLS))
 
 
+def test_default_player_names():
+    game = Game()
+    assert game.players == {1: "Player 1", 2: "Player 2"}
+
+
+def test_custom_player_names():
+    game = Game(player1_name="Alice", player2_name="Bob")
+    assert game.players == {1: "Alice", 2: "Bob"}
+
+
 def test_completed_at_not_set_while_in_progress():
     game = Game()
     game.make_move(1, 0)

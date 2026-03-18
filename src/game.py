@@ -7,12 +7,13 @@ COLS = 7
 
 
 class Game:
-    def __init__(self):
+    def __init__(self, player1_name="Player 1", player2_name="Player 2"):
         self.id = str(uuid.uuid4())
         self.board = [[0] * COLS for _ in range(ROWS)]
         self.current_player = 1
         self.status = "in_progress"
         self.completed_at = None
+        self.players = {1: player1_name, 2: player2_name}
         self._condition = threading.Condition()
 
     def make_move(self, player, column):
