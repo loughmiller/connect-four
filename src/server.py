@@ -2,10 +2,13 @@ import threading
 import time
 
 from flask import Flask, jsonify, request
+from flask_restx import Api, Resource
 from src.api_spec import API_SPEC
 from src.game import Game
 
 app = Flask(__name__)
+api = Api(app, doc="/docs", title="Connect Four API", version="1.0.0",
+          description="REST API for playing Connect Four.")
 games = {}
 
 LONG_POLL_TIMEOUT = 30
@@ -97,11 +100,19 @@ def _game_response(game):
     })
 
 
-@app.route("/games/<game_id>", methods=["GET"])
-def get_game(game_id):
-    if game_id not in games:
-        return jsonify({"error": "Game not found"}), 404
-    return _game_response(games[game_id]), 200
+@api.route("/games/<game_id>")
+class GameResource(Resource):
+    def get(self, game_id):
+        if game_id not in games:
+            return {"error": "Game not found"}, 404
+        game = games[game_id]
+        return {
+            "game_id": game.id,
+            "board": game.board,
+            "current_player": game.current_player,
+            "status": game.status,
+            "players": game.players,
+        }, 200
 
 
 @app.route("/games/<game_id>/turn", methods=["GET"])
